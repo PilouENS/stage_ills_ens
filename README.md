@@ -1,5 +1,5 @@
 # Mixture of experts 
-il faut se mettre sur le noeud avant (voir ([use_grid_5000](./pilou_git/use_grid_5000.md)))
+il faut se mettre sur le noeud avant (voir ([use_grid_5000](./use_grid_5000.md)))
 Script bash ([init_mixtral](./pilou_git/init_mixtral_node.sh)) pour mettre en place l'environnement :
 - création d'un venv
 - maj de pip et install des bibli py
