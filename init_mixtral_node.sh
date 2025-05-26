@@ -39,5 +39,5 @@ else
     exit 1
 fi
 
-
-
+cd ~/stage_ills_moe/stage_ILLS
+source venv-mixtral/bin/activate

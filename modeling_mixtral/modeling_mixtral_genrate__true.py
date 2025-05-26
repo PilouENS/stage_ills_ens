@@ -87,7 +87,12 @@ class MixtralBlockSparseTop2MLP(nn.Module):
         current_hidden_states = self.w2(current_hidden_states)
         return current_hidden_states
 
-resultat = {}
+### pilou_modif ###
+resultat = [{} for _ in range(32)] 
+i = 0
+resultat_layer = {}
+        ###
+@use_kernel_forward_from_hub("MixtralBlockSparseTop2MLP")
 class MixtralSparseMoeBlock(nn.Module):
     """
     This implementation is
@@ -99,7 +104,7 @@ class MixtralSparseMoeBlock(nn.Module):
     capacity factor to number of experts and thus waste computation
     and memory on padding.
     """
-
+    global i #pilou_modif
     def __init__(self, config, layer_idx=None, all_layers=None):
         super().__init__()
         self.hidden_dim = config.hidden_size
@@ -129,8 +134,8 @@ class MixtralSparseMoeBlock(nn.Module):
         routing_weights = F.softmax(router_logits, dim=1, dtype=torch.float)
 
         if self.layer_idx not in resultat:
-            resultat[self.layer_idx] = {}
-        resultat[self.layer_idx]["weights"] = routing_weights
+            resultat_layer[self.layer_idx] = {}
+        resultat_layer[self.layer_idx]["weights"] = routing_weights
 
         routing_weights, selected_experts = torch.topk(routing_weights, self.top_k, dim=-1)
         routing_weights /= routing_weights.sum(dim=-1, keepdim=True)
@@ -162,12 +167,15 @@ class MixtralSparseMoeBlock(nn.Module):
         ### Pilou_modif ###
     
         
-        resultat[self.layer_idx]["experts"] = selected_experts
+        resultat_layer[self.layer_idx]["experts"] = selected_experts
         
     
-        if len(resultat) == 32:
-            torch.save(resultat, f"routing_weights.pt") #pilou_modif
-            print("Pilouuuu")
+        if len(resultat_layer) == 32:
+            for l in range(len(resultat_layer)):
+                resultat[l][i] = resultat_layer[l]
+            i+=1
+            resultat_layer = {}
+
         return final_hidden_states, router_logits
 
 

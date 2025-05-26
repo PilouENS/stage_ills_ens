@@ -1,32 +1,35 @@
 import os
 import torch
 from datasets import load_dataset
+from tqdm import tqdm
 
 # Configuration de l'environnement
 os.environ["TRANSFORMERS_CACHE"] = "/tmp/hf-cache"
 os.environ["HF_HOME"] = "/tmp/hf-home"
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
-
+from transformers.models.mixtral.modeling_mixtral import resultat  # Uncomment and adjust if 'resultat' is needed and available in your PYTHONPATH
 
 model_id = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 torch.cuda.empty_cache()
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto", torch_dtype=torch.float16)
 model.config.output_router_logits = True  # pour voir les sorties du routeur
-dataset = load_dataset("HuggingFaceH4/helpful_instructions", split="train[:1000]")  # ← juste 10 exemples pour tester
+dataset = load_dataset("HuggingFaceH4/helpful_instructions", split="train[:1]") 
 
 
-#print(dataset[0].keys())
-instructions = [sample["prompt"] for sample in dataset]
-gros_texte = "\n\n".join(instructions)
-inputs = tokenizer(gros_texte, return_tensors="pt", truncation=False).to(model.device)
-#print("gros_texte", gros_texte)
-with torch.no_grad():
-    outputs = model(**inputs, return_dict=True)
+for sample in tqdm(dataset):  # progress bar utile pour les longs datasets
+    prompt = sample["prompt"]
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(model.device)
+
+    model.eval()
+    with torch.no_grad():
+        outputs = model(**inputs, return_dict=True)
 
     #router_logits = outputs.router_logits  # Liste : une entrée par couche
 
+#on enregistre les resultats dans un fcihier
+torch.save(resultat, "router_logits.pt")
 """
 print(inputs["input_ids"].shape)
 print("logits de la première couche", router_logits[0])  # logits de la première couche
