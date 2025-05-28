@@ -10,7 +10,10 @@ import matplotlib.pyplot as plt
 import itertools
 #ouvre le fichier
 #data = torch.load("router_logits_instructions.pt") # Pour le dataset helpful_instructions
-data = torch.load("router_logits_codealpaca.pt")  # Pour le dataset codealpaca
+
+data_name = "instructions" #"codealpaca"  # Nom du dataset utilisé
+data = torch.load(f"router_logits_{data_name}.pt", map_location="cuda:0")  # Pour le dataset codealpaca
+
 
 N_EXPERTS = 8                           # 8 experts par couche
 pairs     = list(itertools.combinations(range(N_EXPERTS), 2))  # [(0,1), (0,2)…]
@@ -47,11 +50,11 @@ def plot_expert_distribution(freq_norm: torch.Tensor):
     plt.figure(figsize=(12, 6))
     sns.heatmap(freq_norm.numpy(), annot=True, fmt=".2f", cmap="YlGnBu", cbar=True)
 
-    plt.title("Fréquence normalisée d’activation des experts par couche _ dataset : helpful_instructions")
+    plt.title(f"Fréquence normalisée d’activation des experts par couche _ dataset : {data_name}")
     plt.xlabel("Expert")
     plt.ylabel("Couche")
     plt.tight_layout()
-    plt.savefig("figures/heatmap_experts_par_couche_instructions_10000.png", dpi=300)
+    plt.savefig(f"figures/heatmap_experts_par_couche_{data_name}.png", dpi=300)
 
 
 def couples_matrix(layer_a: int, layer_b: int, data) -> torch.Tensor:
@@ -80,12 +83,30 @@ def couples_matrix(layer_a: int, layer_b: int, data) -> torch.Tensor:
     return M
 
 
-freq_norm = calc_freq_norm(data)
-plot_expert_distribution(freq_norm)
+def trace_couples_matrix(layer_a, layer_b, data):
+    M = couples_matrix(layer_a, layer_b, data)
+    row_norm = M.float() / M.sum(dim=1, keepdim=True)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(row_norm, cmap="YlOrBr", vmin=0, vmax=row_norm.max(), xticklabels=pairs, yticklabels=pairs)
+    plt.title(f"Couples (couche {layer_a})  ×  Couples (couche {layer_b}) — normalisé par ligne - dataset : {data_name}")
+    plt.xticks(rotation=45, ha='right')
+    plt.xlabel(f"Couple en couche {layer_b}")
+    plt.ylabel(f"Couple en couche {layer_a}")
+    plt.tight_layout()
+    plt.savefig(f"figures/couples_matrix_{layer_a}_{layer_b}_{data_name}.png", dpi=300)
 
-mat_0_1 = couples_matrix(0, 1, data)   
-print(mat_0_1)
-mat_0_1 = mat_0_1.float() / mat_0_1.sum(dim=1, keepdim=True)
+
+
+
+#freq_norm = calc_freq_norm(data)
+#plot_expert_distribution(freq_norm)
+
+#mat_0_1 = couples_matrix(0, 1, data)   
+#print(mat_0_1)
+#mat_0_1 = mat_0_1.float() / mat_0_1.sum(dim=1, keepdim=True)
+trace_couples_matrix(30, 31, data)  # Tracer la matrice des couples pour les couches 0 et 1
+
+
 
 #plot_expert_distribution(freq_norm)
 
