@@ -97,14 +97,13 @@ def trace_couples_matrix(layer_a, layer_b, data):
 
 
 
-
 #freq_norm = calc_freq_norm(data)
 #plot_expert_distribution(freq_norm)
 
 #mat_0_1 = couples_matrix(0, 1, data)   
 #print(mat_0_1)
 #mat_0_1 = mat_0_1.float() / mat_0_1.sum(dim=1, keepdim=True)
-trace_couples_matrix(30, 31, data)  # Tracer la matrice des couples pour les couches 0 et 1
+trace_couples_matrix(2, 3, data)  # Tracer la matrice des couples pour les couches 0 et 1
 
 
 

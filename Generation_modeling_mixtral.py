@@ -34,7 +34,7 @@ for sample in tqdm(dataset):  # progress bar utile pour les longs datasets
 #on enregistre les resultats dans un fcihier
 torch.save(resultat, "router_logits_codealpaca.pt")
 
-#pour un prompt on genere une reponse
+#pour un prompt on genere une reponse   
 prompt = dataset[0].get("prompt", "").strip()
 print("Prompt :", prompt)
 input = tokenizer(prompt, return_tensors="pt").to(model.device)

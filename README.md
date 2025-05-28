@@ -32,8 +32,51 @@ to do
 - tracer la matrice de corrélation entre X et Y avec du comptage (puis étendre à Z) puis distribution jointe empirique 
 - regarder les métriques pour exploiter ça (3 types de corrélation, bi-clustering)
 
+# Normalisation de la matrice de co-occurence
+Avec `Stat_experts.py` on calcule le nombre de fois que chaque couple d'experts de la couche A et utilisés par la couche B. Je veux normaliser ce résultat sur [0,1]. On peut soit normaliser la matrice par ligne, par colonne ou toute la matrice directement. 
+
+## Normalisation par ligne
+Lorsque l'on normalise la matrice de co-occurrence (28x28) **par ligne**, on calcule une probabilité conditionnelle de la forme :
+**P(couple_j à la couche L+1 | couple_i à la couche L)**
+Donc on mesure la probabilité que le couple d’experts `j` soit activé en couche `L+1`, **sachant** que le couple `i` l’a été en couche `L`.
+La normalisation par ligne est utile pour :
+- étudier les **transitions inter-couches** dans un modèle MoE ;
+- analyser le **comportement dynamique du routeur** ;
+- construire des **trajectoires de routing** couche par couche.
+
+Cette approche peut être trompeuse si on l'interprète seule.
+Par exemple, un couple `i` **très rarement activé** peut, à chaque fois ou presque mener au même couple `j`.  
+Dans ce cas :
+- La **probabilité conditionnelle** P(j | i) sera proche de 1
+- Mais la **probabilité jointe** P(i → j) = P(i) × P(j | i) sera **très faible**
+
+> on observe un lien très fort entre `i` et `j`, mais ce chemin est **statistiquement très rare** (donc pas useful)
+
+## Normalisation sur toute la matrice
+SI on normalise la matrice de co-occurrence (28x28) **sur l'ensemble de ses éléments**, on obtient une **probabilité jointe** :
+**P(couple_i à la couche L et couple_j à la couche L+1)**
+A haque case `(i, j)` de la matrice donne directement la **fréquence absolue** du chemin `i → j` dans les données.
+
+Cette approche est utile pour :
+- identifier les **transitions réellement fréquentes** dans le modèle ;
+- **pondérer les liens conditionnels** avec leur fréquence d’occurrence ;
+- détecter les **chemins dominants** dans la dynamique globale du routing.
+
+La probabilité jointe intègre **à la fois la probabilité de départ (`P(i)`) et la conditionnelle (`P(j | i)`)**, ce qui permet de :
+- éviter de surinterpréter des chemins rares,
+- **quantifier l’importance réelle** d’un chemin `i → j`.
+Mais dcp elle ne permet pas de détecter **régularités locales** ou des règles de transition, car elle ne tient pas compte du conditionnement.  
+
+> Un couple `j` peut apparaître très souvent simplement parce qu’il est populaire globalement, **sans dépendre de `i`**.
+
+
+
+
+
 ## Calcul de la précision de la prédiction 
 on run le modèle sur un dataset choisi (étudier l'effet du dataset en essayant pour différente dataset). On enregistre les experts (top-2) selectionnés ppur chaque token dans chaque couche.
 On regarde a chaque fois si on a un hit (expert prédit in experts réalité). Et on a notre précision moyenne.
+
+
 
 ## Résultats
