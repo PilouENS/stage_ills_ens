@@ -25,7 +25,7 @@
 # limitations under the License.
 
 
-print("PILOU MixtralModel _ génération routing_weights et selected experts, voir Stat_experts.py")
+print("PILOU 16h53 MixtralModel _ génération routing_weights et selected experts, voir Stat_experts.py")
 print("\n"*5)
 
 
@@ -104,7 +104,7 @@ class MixtralSparseMoeBlock(nn.Module):
     capacity factor to number of experts and thus waste computation
     and memory on padding.
     """
-    global i #pilou_modif
+    
     def __init__(self, config, layer_idx=None, all_layers=None):
         super().__init__()
         self.hidden_dim = config.hidden_size
@@ -124,6 +124,9 @@ class MixtralSparseMoeBlock(nn.Module):
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         """ """
+        global i #pilou_modif
+        global resultat_layer #pilou_modif
+        
         batch_size, sequence_length, hidden_dim = hidden_states.shape
         if self.training and self.jitter_noise > 0:
             hidden_states *= torch.empty_like(hidden_states).uniform_(1.0 - self.jitter_noise, 1.0 + self.jitter_noise)
@@ -133,7 +136,7 @@ class MixtralSparseMoeBlock(nn.Module):
 
         routing_weights = F.softmax(router_logits, dim=1, dtype=torch.float)
 
-        if self.layer_idx not in resultat:
+        if self.layer_idx not in resultat_layer:
             resultat_layer[self.layer_idx] = {}
         resultat_layer[self.layer_idx]["weights"] = routing_weights
 

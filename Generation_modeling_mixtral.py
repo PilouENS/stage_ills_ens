@@ -15,11 +15,14 @@ torch.cuda.empty_cache()
 tokenizer = AutoTokenizer.from_pretrained(model_id)
 model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto", torch_dtype=torch.float16)
 model.config.output_router_logits = True  # pour voir les sorties du routeur
-dataset = load_dataset("HuggingFaceH4/helpful_instructions", split="train[:1]") 
-
+#dataset = load_dataset("HuggingFaceH4/helpful_instructions", split="train[:1000]")
+#dataset = load_dataset("HuggingFaceH4/testing_codealpaca_small", split="train[:1000]", trust_remote_code=True)
+dataset = load_dataset('flytech/python-codes-25k', split="train[:1000]", trust_remote_code=True)
+print(dataset[0].keys())
 
 for sample in tqdm(dataset):  # progress bar utile pour les longs datasets
-    prompt = sample["prompt"]
+    #prompt = sample["prompt"] #helpful_instructions
+    prompt = sample.get("prompt", "").strip()
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(model.device)
 
     model.eval()
@@ -29,7 +32,18 @@ for sample in tqdm(dataset):  # progress bar utile pour les longs datasets
     #router_logits = outputs.router_logits  # Liste : une entrée par couche
 
 #on enregistre les resultats dans un fcihier
-torch.save(resultat, "router_logits.pt")
+torch.save(resultat, "router_logits_codealpaca.pt")
+
+#pour un prompt on genere une reponse
+prompt = dataset[0].get("prompt", "").strip()
+print("Prompt :", prompt)
+input = tokenizer(prompt, return_tensors="pt").to(model.device)
+outputs = model.generate(input.input_ids, max_new_tokens=50, return_dict_in_generate=True, output_router_logits=True)
+print("Réponse générée :", tokenizer.decode(outputs.sequences[0], skip_special_tokens=True))
+
+
+
+
 """
 print(inputs["input_ids"].shape)
 print("logits de la première couche", router_logits[0])  # logits de la première couche
