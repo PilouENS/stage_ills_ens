@@ -86,16 +86,26 @@ def couples_matrix(layer_a: int, layer_b: int, data) -> torch.Tensor:
 def trace_couples_matrix(layer_a, layer_b, data):
     M = couples_matrix(layer_a, layer_b, data)
     row_norm = M.float() / M.sum(dim=1, keepdim=True)
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(row_norm, cmap="YlOrBr", vmin=0, vmax=row_norm.max(), xticklabels=pairs, yticklabels=pairs)
-    plt.title(f"Couples (couche {layer_a})  ×  Couples (couche {layer_b}) — normalisé par ligne - dataset : {data_name}")
-    plt.xticks(rotation=45, ha='right')
-    plt.xlabel(f"Couple en couche {layer_b}")
-    plt.ylabel(f"Couple en couche {layer_a}")
+    joint_norm = M.float() / M.sum()
+    
+    fig, axs = plt.subplots(1, 2, figsize=(20, 8))
+
+    sns.heatmap(row_norm, cmap="YlOrBr", vmin=0, vmax=row_norm.max(),
+                xticklabels=pairs, yticklabels=pairs, ax=axs[0])
+    axs[0].set_title(f"Proba conditionnelle — couche {layer_a} → {layer_b} — {data_name}")
+    axs[0].set_xlabel(f"Couple en couche {layer_b}")
+    axs[0].set_ylabel(f"Couple en couche {layer_a}")
+    axs[0].tick_params(axis='x', rotation=45)
+
+    sns.heatmap(joint_norm, cmap="YlGnBu", vmin=0, vmax=joint_norm.max(),
+                xticklabels=pairs, yticklabels=False, ax=axs[1])
+    axs[1].set_title(f"Proba jointe — couche {layer_a} ∧ {layer_b} — {data_name}")
+    axs[1].set_xlabel(f"Couple en couche {layer_b}")
+    axs[1].tick_params(axis='x', rotation=45)
+
     plt.tight_layout()
     plt.savefig(f"figures/couples_matrix_{layer_a}_{layer_b}_{data_name}.png", dpi=300)
-
-
+    plt.close()
 
 #freq_norm = calc_freq_norm(data)
 #plot_expert_distribution(freq_norm)
@@ -103,7 +113,7 @@ def trace_couples_matrix(layer_a, layer_b, data):
 #mat_0_1 = couples_matrix(0, 1, data)   
 #print(mat_0_1)
 #mat_0_1 = mat_0_1.float() / mat_0_1.sum(dim=1, keepdim=True)
-trace_couples_matrix(2, 3, data)  # Tracer la matrice des couples pour les couches 0 et 1
+#trace_couples_matrix(2, 3, data)  # Tracer la matrice des couples pour les couches 0 et 1
 
 
 

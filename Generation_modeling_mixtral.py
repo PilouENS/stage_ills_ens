@@ -1,3 +1,8 @@
+"""
+script pour générer des sorties à partir du modèle Mixtral-8x7B-Instruct-v0.1
+Il faut modifier modeling_mixtral.py pour avoir les sorties 
+fichiers modeling_mixtral_modifée dispo dans pilou_git/modeling_mixtral/
+"""
 import os
 import torch
 from datasets import load_dataset
@@ -11,10 +16,16 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers.models.mixtral.modeling_mixtral import resultat  # Uncomment and adjust if 'resultat' is needed and available in your PYTHONPATH
 
 model_id = "mistralai/Mixtral-8x7B-Instruct-v0.1"
-torch.cuda.empty_cache()
 tokenizer = AutoTokenizer.from_pretrained(model_id)
-model = AutoModelForCausalLM.from_pretrained(model_id, device_map="auto", torch_dtype=torch.float16)
-model.config.output_router_logits = True  # pour voir les sorties du routeur
+model = AutoModelForCausalLM.from_pretrained
+            (
+                model_id, 
+                device_map="auto", 
+                torch_dtype=torch.float16,
+            )
+model.eval()  # Met le modèle en mode évaluation
+
+### === Chargement du dataset === ###   
 #dataset = load_dataset("HuggingFaceH4/helpful_instructions", split="train[:1000]")
 #dataset = load_dataset("HuggingFaceH4/testing_codealpaca_small", split="train[:1000]", trust_remote_code=True)
 dataset = load_dataset('flytech/python-codes-25k', split="train[:1000]", trust_remote_code=True)
@@ -28,8 +39,6 @@ for sample in tqdm(dataset):  # progress bar utile pour les longs datasets
     model.eval()
     with torch.no_grad():
         outputs = model(**inputs, return_dict=True)
-
-    #router_logits = outputs.router_logits  # Liste : une entrée par couche
 
 #on enregistre les resultats dans un fcihier
 torch.save(resultat, "router_logits_codealpaca.pt")
