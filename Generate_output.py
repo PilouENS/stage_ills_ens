@@ -35,39 +35,44 @@ model = AutoModelForCausalLM.from_pretrained(
 model.eval()  # Met le modèle en mode évaluation
 
 ### === Chargement du dataset === ###   
-#dataset = load_dataset("HuggingFaceH4/helpful_instructions", split="train[:1000]")
-dataset = load_dataset("HuggingFaceH4/testing_codealpaca_small", split="train[:3]", trust_remote_code=True)
+dataset = load_dataset("HuggingFaceH4/helpful_instructions", split="train[:10000]", trust_remote_code=True)
+#dataset = load_dataset("HuggingFaceH4/testing_codealpaca_small", split="train[:2]", trust_remote_code=True)
 #dataset = load_dataset('flytech/python-codes-25k', split="train[:3]", trust_remote_code=True)
 print(dataset[0].keys())
+
+
 token_ids = []  # Liste pour stocker les IDs des tokens
-router_logits = [[] for _ in range(32)]  # Liste pour stocker les logits des routeurs
-hidden_states = [[] for _ in range(33)]  # Liste pour stocker les états cachés (embedding + 32 couches)
-
-
+data = []
+model.eval()
 for sample in tqdm(dataset): 
-    #prompt = sample["prompt"] #helpful_instructions
-    prompt = sample.get("prompt", "").strip()
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(model.device)
+    prompt = sample["prompt"] #helpful_instructions
+    #prompt = sample.get("prompt", "").strip()
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=False).to('cuda')
     token_ids.extend(inputs.input_ids[0].tolist())  # On stocke les IDs des tokens
-    model.eval()
+    #print("prompt :", prompt)
+    #print("nb de tokens :", len(inputs.input_ids[0]))
     with torch.no_grad():
         outputs = model(**inputs, return_dict=True)
+    router_logits_PROMPT = outputs.router_logits  #[couche][token number][poids x8] = 32xNB_tokenx8
+    hidden_states_PROMPT = outputs.hidden_states  #[embedding+layer][token number][hidden_states x 4096] = 33xNB_tokenx4096
+    
+    data_new = []  # Liste pour stocker les données formatées pour chaque token
+    for tk in range(len(router_logits_PROMPT[0])):
+        data_new.append([token_ids[tk], [], []])  # Initialisation de data_new pour chaque token
 
-    router_logits_TK = outputs.router_logits  
-    hidden_states_TK = outputs.hidden_states  
-    for layer in range(len(router_logits_TK)):
-        # On stocke les logits des routeurs et les états cachés pour chaque couche
-        for i in range(router_logits_TK[layer].shape[1]):
-            router_logits[layer].append(router_logits_TK[layer][0, i].cpu())
-            hidden_states[layer].append(hidden_states_TK[layer][0, i].cpu())
-        # on concatene tous les tensors de logits et d'états cachés
+    # On ajoute les IDs des tokens à la liste data
+    # On stocke les logits des routeurs et les états cachés pour chaque couche
+    for l in range(len(router_logits_PROMPT)):
+        for tk in range(len(router_logits_PROMPT[l])):
+            data_new[tk][1].append(router_logits_PROMPT[l][tk])
+            data_new[tk][2].append(hidden_states_PROMPT[l][0][tk])
+            data_new[tk][2].append(hidden_states_PROMPT[32][0][tk]) #embedding
+    for elm in data_new:
+        data.append(elm)  # On ajoute les données formatées pour chaque token à la liste data
 
-# on concatene les tensors de logits et d'états cachés  
-for layer in range(len(router_logits)):    
-    router_logits[layer] = torch.stack(router_logits[layer], dim=0)
-    hidden_states[layer] = torch.stack(hidden_states[layer], dim=0)
+    # data de la forme [token_id, [couche][x8], [embedding+couche][x4096]]
 
 
-#on enregistre les resultats dans un fichier
-torch.save((router_logits, hidden_states,token_ids), "model_output_test.pt")
+torch.save(data, "outputs/model.output/router_logits_hidden_states_INSTRUCTIONS.pt")
+print("finito la génération")
 

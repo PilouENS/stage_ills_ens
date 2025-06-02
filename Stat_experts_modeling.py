@@ -10,23 +10,30 @@ import matplotlib.pyplot as plt
 import itertools
 from mpl_toolkits.mplot3d import Axes3D
 import plotly.graph_objects as go
+
+### DATA LOADER ###
 #ouvre le fichier
 #data = torch.load("router_logits_instructions.pt") # Pour le dataset helpful_instructions
-
 data_name = "instructions" #"codealpaca"  # Nom du dataset utilisé
 data = torch.load(f"outputs/modeling modifie/router_logits_{data_name}.pt", map_location="cuda:0")  # Pour le dataset codealpaca
 
 
+
+
+### TESTE et INFOS ###
 N_EXPERTS = 8                           # 8 experts par couche
 pairs     = list(itertools.combinations(range(N_EXPERTS), 2))  # [(0,1), (0,2)…]
 pairNid  = {p: i for i, p in enumerate(pairs)}                # (i,j) -> 0-27
 L = [len(data[0][i]['weights']) for i in range(len(data[0]))]
 N_TOKEN = sum(L) # Nombre de jetons traités
-
-
 print("Nombre de jetons traités :", N_TOKEN)
 print("le premier expert de la premiere couche pour le premier token du premier batch : ",data[0][0]["experts"][0][0].item())
 
+
+
+
+
+### FREQUENCE ET COUPLES DES EXPERTS PAR COUCHE ###
 # Dico de fréquence d'activation des experts par couche
 def calc_freq_norm(data):
     """
@@ -45,7 +52,6 @@ def calc_freq_norm(data):
     #print("fréquece d'utilisation des experts :", freq)
     freq_norm = freq.float() / freq.sum(dim=1, keepdim=True)
     return freq_norm
-
 def plot_expert_distribution(freq_norm: torch.Tensor):
     # === Tracé de la heatmap
     # Affichage des experts les plus utilisés par couche
@@ -59,6 +65,10 @@ def plot_expert_distribution(freq_norm: torch.Tensor):
     plt.savefig(f"figures/heatmap_experts_par_couche_{data_name}.png", dpi=300)
 
 
+
+
+
+### MATRICES CO OCCURRENCE DES COUPLES D'EXPERTS ###
 def couples_matrix(layer_a: int, layer_b: int, data) -> torch.Tensor:
     """
     Retourne une matrice 28×28 :
@@ -80,9 +90,17 @@ def couples_matrix(layer_a: int, layer_b: int, data) -> torch.Tensor:
             M[p, q] += 1
 
     return M
-
-
 def trace_couples_matrix(layer_a, layer_b, data):
+    """
+    Trace les deux heatmaps :
+    - Proba conditionnelle : P(couple en couche B | couple en couche A)
+    - Proba jointe : P(couple en couche B ∧ couple en couche A)
+    Inputs :
+    :param layer_a: Couche A (int)
+    :param layer_b: Couche B (int)
+    :param data: Données des experts par couche
+
+    """
     M = couples_matrix(layer_a, layer_b, data)
     row_norm = M.float() / M.sum(dim=1, keepdim=True)
     joint_norm = M.float() / M.sum()
@@ -106,6 +124,11 @@ def trace_couples_matrix(layer_a, layer_b, data):
     plt.savefig(f"figures/2couples_matrix_{layer_a}_{layer_b}_{data_name}.png", dpi=300)
     plt.close()
 
+
+
+
+
+### Trajectoires des experts dans l'espace 3D ###
 def trajectoires ():
     trajectories = []  # Liste pour stocker les trajectoires des experts
     N_PROMPTS = len(data[0])  # Nombre de prompts
@@ -119,10 +142,6 @@ def trajectoires ():
                 traj.append((e1.item(), e2.item()))
             trajectories.append(traj)
     return trajectories
-
-
-
-
 def plot_all_trajectories_3d(max_tokens, save_path=None):
     """
     trajectories : List[List[Tuple[int, int]]]  # [n_tokens][n_layers]
@@ -157,14 +176,12 @@ def plot_all_trajectories_3d(max_tokens, save_path=None):
         
 
     )
-
     fig.write_html(save_path)
     print(f"Figure interactive enregistrée dans : {save_path}")
 
-    
-    
+### RUN EXPERIMENTS ###
 
-# Affichage
+
 plot_all_trajectories_3d(max_tokens=2, save_path="figures/trajectories_3d_all.html")
 
 #freq_norm = calc_freq_norm(data)
