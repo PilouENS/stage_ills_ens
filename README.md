@@ -1,4 +1,6 @@
 # Mixture of experts 
+
+## Environnement de travail 
 il faut se mettre sur le noeud avant (voir ([use_grid_5000](./use_grid_5000.md)))
 Script bash ([init_mixtral](./pilou_git/init_mixtral_node.sh)) pour mettre en place l'environnement :
 - création d'un venv
@@ -6,13 +8,22 @@ Script bash ([init_mixtral](./pilou_git/init_mixtral_node.sh)) pour mettre en pl
 - gestion token huggin face 
 - on se place sur le noeud pour telecharger
 - download transformers en editable 
-
+à détailler 
 Pour lancer un job sans interactive mode : submit_wait.sh
 
 ## Objectifs et motivations
 - prédiction des experts utilisés pour un token (prédiction spatiale): pour pouvoir charger les experts en avance notamment
 - prédiction des experts entre token (prédiction temporelle) : à la couche l du token t on veut savoir quels experts on utilisera à la couche l du token t+1. Ca permet de savoir quels experts on garde en mémoire
 - explicabilité : le mécanisme de routage, la spécialisation ou non des experts. On aimerait mieux comprendre comment tout ça se passe.
+
+## Ressources 
+- dossier `biblio`
+- [Mixture of Experts: A Smarter Way to Train AI Models (IBM)](https://www.ibm.com/think/topics/mixture-of-experts)
+- [AI Expert Speculates on GPT-4 Architecture (wandb.ai)](https://wandb.ai/byyoung3/ml-news/reports/AI-Expert-Speculates-on-GPT-4-Architecture---Vmlldzo0NzA0Nzg4)
+
+## modèles utilisés
+- Mixtral 8x7B :  (47B parameters (as some are shared between experts), 13B active for inference) via hugging_face/transormers
+- 
 
 ## Solutions pour la prédiction d'experts dans llm moe  
 - (1) utilisation des gating functions des couches suivantes (prédiction spatiale)
@@ -81,6 +92,10 @@ Mais dcp elle ne permet pas de détecter **régularités locales** ou des règle
 
 > Un couple j peut apparaître très souvent simplement parce qu’il est populaire globalement, **sans dépendre de i**.
 
+#### Visualisation et résultats
+On trace donc la matrice de co-occurence avec les deux types de normalisation. 
+
+
 ### Trajectoires 
 Grâce à la matrice de co-occurence entre deux couches successives on à une information locale. On aimerait étenndre cette information sur l'ensemble des couches pour un token : analyse des trajectoires. 
 On peut visualiser les trajectoires de plusieurs manières :
@@ -91,8 +106,7 @@ On peut visualiser les trajectoires de plusieurs manières :
 - courbes paramétrées f(E1(l), E2(l)) avec l in layer
 
 
-#### Visualisation et résultats
-On trace donc la matrice de co-occurence avec les deux types de normalisation. 
+
 
 ### Similarité des experts 
 demandé papier à Pablo pour outils stat

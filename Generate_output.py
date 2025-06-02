@@ -14,6 +14,9 @@ import torch
 from datasets import load_dataset
 from tqdm import tqdm
 
+print("début du script de génération des outputs")
+
+
 # Configuration de l'environnement
 os.environ["TRANSFORMERS_CACHE"] = "/tmp/hf-cache"
 os.environ["HF_HOME"] = "/tmp/hf-home"
@@ -37,9 +40,11 @@ dataset = load_dataset("HuggingFaceH4/testing_codealpaca_small", split="train[:3
 #dataset = load_dataset('flytech/python-codes-25k', split="train[:3]", trust_remote_code=True)
 print(dataset[0].keys())
 token_ids = []  # Liste pour stocker les IDs des tokens
-router_logits = []  # Liste pour stocker les logits des routeurs
-hidden_states = []  # Liste pour stocker les états cachés
-for sample in tqdm(dataset):  # progress bar utile pour les longs datasets
+router_logits = [[] for _ in range(32)]  # Liste pour stocker les logits des routeurs
+hidden_states = [[] for _ in range(33)]  # Liste pour stocker les états cachés (embedding + 32 couches)
+
+
+for sample in tqdm(dataset): 
     #prompt = sample["prompt"] #helpful_instructions
     prompt = sample.get("prompt", "").strip()
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(model.device)
@@ -52,17 +57,15 @@ for sample in tqdm(dataset):  # progress bar utile pour les longs datasets
     hidden_states_TK = outputs.hidden_states  
     for layer in range(len(router_logits_TK)):
         # On stocke les logits des routeurs et les états cachés pour chaque couche
-        if layer >= len(router_logits):
-            router_logits.append([])
-            hidden_states.append([])
-        router_logits[layer].append(router_logits_TK[layer].cpu())
-        hidden_states[layer].append(hidden_states_TK[layer].cpu())
+        for i in range(router_logits_TK[layer].shape[1]):
+            router_logits[layer].append(router_logits_TK[layer][0, i].cpu())
+            hidden_states[layer].append(hidden_states_TK[layer][0, i].cpu())
         # on concatene tous les tensors de logits et d'états cachés
 
 # on concatene les tensors de logits et d'états cachés  
 for layer in range(len(router_logits)):    
-    router_logits[layer] = torch.cat(router_logits[layer], dim=0)
-    hidden_states[layer] = torch.cat(hidden_states[layer], dim=0)
+    router_logits[layer] = torch.stack(router_logits[layer], dim=0)
+    hidden_states[layer] = torch.stack(hidden_states[layer], dim=0)
 
 
 #on enregistre les resultats dans un fichier
