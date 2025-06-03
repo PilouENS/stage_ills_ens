@@ -19,12 +19,7 @@ cd ~/stage_ills_moe/stage_ILLS/transformers
 # 6. Installer transformers en mode editable (modifiable localement)
 # 7. Installer torch et accelerate
 pip install -e .
-pip install torch
-pip install accelerate
-pip install scipy
-pip install datasets
-pip install matplotlib
-pip install tqdm
+pip install -r /home/pfiloche/stage_ills_moe/stage_ILLS/pilou_git/requirements.txt
 # . Configuration des chemins de cache
 export HF_HOME=/tmp/hf-home
 export TRANSFORMERS_CACHE=/tmp/hf-cache

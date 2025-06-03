@@ -46,15 +46,18 @@ data = []
 model.eval()
 for sample in tqdm(dataset): 
     prompt = sample["prompt"] #helpful_instructions
-    #prompt = sample.get("prompt", "").strip()
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=False).to('cuda')
+    #prompt = sample.get("prompt", "").strip() #codealpaca
+    #prompt = sample.get("instruction", "").strip()  # Pour le dataset "instructions"
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512).to(model.device)
+    #inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024).to(model.device) #codealpaca
+    #inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512).to(model.device) #python-codes-25k
     token_ids.extend(inputs.input_ids[0].tolist())  # On stocke les IDs des tokens
     #print("prompt :", prompt)
     #print("nb de tokens :", len(inputs.input_ids[0]))
     with torch.no_grad():
         outputs = model(**inputs, return_dict=True)
     router_logits_PROMPT = outputs.router_logits  #[couche][token number][poids x8] = 32xNB_tokenx8
-    hidden_states_PROMPT = outputs.hidden_states  #[embedding+layer][token number][hidden_states x 4096] = 33xNB_tokenx4096
+    #hidden_states_PROMPT = outputs.hidden_states  #[embedding+layer][token number][hidden_states x 4096] = 33xNB_tokenx4096
     
     data_new = []  # Liste pour stocker les données formatées pour chaque token
     for tk in range(len(router_logits_PROMPT[0])):
@@ -64,15 +67,18 @@ for sample in tqdm(dataset):
     # On stocke les logits des routeurs et les états cachés pour chaque couche
     for l in range(len(router_logits_PROMPT)):
         for tk in range(len(router_logits_PROMPT[l])):
-            data_new[tk][1].append(router_logits_PROMPT[l][tk])
-            data_new[tk][2].append(hidden_states_PROMPT[l][0][tk])
-            data_new[tk][2].append(hidden_states_PROMPT[32][0][tk]) #embedding
+            data_new[tk][1].append(router_logits_PROMPT[l][tk].to("cpu"))
+            #data_new[tk][2].append(hidden_states_PROMPT[l][0][tk].to("cpu"))  # On utilise [0] pour accéder à la première dimension des états cachés
+            #data_new[tk][2].append(hidden_states_PROMPT[32][0][tk].to("cpu")) #embedding
     for elm in data_new:
         data.append(elm)  # On ajoute les données formatées pour chaque token à la liste data
+
+    del outputs, router_logits_PROMPT, hidden_states_PROMPT
+    torch.cuda.empty_cache()
 
     # data de la forme [token_id, [couche][x8], [embedding+couche][x4096]]
 
 
-torch.save(data, "outputs/model.output/router_logits_hidden_states_INSTRUCTIONS.pt")
+torch.save(data, "../outputs/model.output/router_logits_hidden_states_INSTRUCTIONS.pt")
 print("finito la génération")
 
