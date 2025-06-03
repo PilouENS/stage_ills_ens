@@ -47,15 +47,15 @@ pairs      = list(itertools.combinations(range(N_EXPERTS), 2))   # [(0,1)…]
 pair2idx   = {p: i for i, p in enumerate(pairs)}                 # (i,j)->0-27
 IDX2PAIR   = {v: k for k, v in pair2idx.items()}                 # 0-27->(i,j)   
 
-# Pour chaque token : [ [e1, e2] ] × 32
+# Pour chaque token : [ (e1, e2) ] × 32
 def build_trajectories():
     trajs = []
     for tok_id, layers, _ in data:
         traj = []
         for layer_logits in layers:              # 8 logits
             top2 = torch.topk(layer_logits, TOPK).indices.tolist()
-            traj.append(top2)
-        trajs.append(tuple(sorted(traj)))
+            traj.append(tuple(sorted(top2)))
+        trajs.append(traj)
     return trajs
 
 TRAJ = build_trajectories()     # pré-calcul pour être réutilisé
@@ -73,10 +73,10 @@ def calc_freq_norm() -> torch.Tensor:
 
 def plot_expert_distribution(freq_norm: torch.Tensor):
     plt.figure(figsize=(12, 6))
-    sns.heatmap(freq_norm, annot=False, cmap="YlGnBu")
+    sns.heatmap(freq_norm.T, annot=False, cmap="YlGnBu")
     plt.title(f"Fréquence normalisée d’activation (dataset : {DATASET_NAME})")
-    plt.xlabel("Expert")
-    plt.ylabel("Couche")
+    plt.ylabel("Expert")
+    plt.xlabel("Couche")
     plt.tight_layout()
     out = FIG_DIR / f"heatmap_experts_{DATASET_NAME}.png"
     plt.savefig(out, dpi=300)
@@ -84,7 +84,7 @@ def plot_expert_distribution(freq_norm: torch.Tensor):
     print(f" Heatmap experts sauvegardée → {out}")
 
 # ─────────────── 2) Matrice de co-occurrence couples ─────────────
-def couples_matrix(layer_a: int, layer_b: int):
+def couples_matrix(layer_a: int, layer_b: int, TRAJ=TRAJ):
     """
     M[pa, pb] = #tokens avec le couple pa (layer_a) ET pb (layer_b)
     pa/pb codés 0-27 via pair2idx.
@@ -96,8 +96,8 @@ def couples_matrix(layer_a: int, layer_b: int):
         M[pa, pb] += 1
     return M
 
-def trace_couples_matrix(layer_a: int, layer_b: int):
-    M = couples_matrix(layer_a, layer_b)
+def trace_couples_matrix(layer_a: int, layer_b: int, TRAJ=TRAJ, save_path=None):
+    M = couples_matrix(layer_a, layer_b, TRAJ=TRAJ)
     row_norm   = M.float() / M.sum(dim=1, keepdim=True)
     joint_norm = M.float() / M.sum()
 
@@ -114,15 +114,15 @@ def trace_couples_matrix(layer_a: int, layer_b: int):
     axs[1].set_title(f"P(couple A ∧ couple B) — {layer_a} & {layer_b}")
     axs[1].set_xlabel(f"Couple couche {layer_b}")
     axs[1].tick_params(axis='x', rotation=45)
-
+    if save_path is None:
+        save_path = FIG_DIR / f"couples_matrix_{layer_a}_{layer_b}_{DATASET_NAME}.png"
     plt.tight_layout()
-    out = FIG_DIR / f"couples_matrix_{layer_a}_{layer_b}_{DATASET_NAME}.png"
-    plt.savefig(out, dpi=300)
+    plt.savefig(save_path, dpi=300)
     plt.close()
-    print(f"Matrice couples sauvegardée → {out}")
+    print(f"Matrice couples sauvegardée → {save_path}")
 
 # ─────────────── 3) Trajectoires 3D (Plotly) ───────────────
-def plot_all_trajectories_3d(max_tokens=500, save_path=None):
+def plot_all_trajectories_3d(TRAJ=TRAJ, max_tokens=500, save_path=None):
     fig = go.Figure()
     for traj in TRAJ[:max_tokens]:
         x = [max(e) for e in traj]   # expert max
@@ -141,7 +141,7 @@ def plot_all_trajectories_3d(max_tokens=500, save_path=None):
             xaxis_title="Expert max",
             yaxis_title="Expert min",
             zaxis_title="Couche",
-            aspectratio=dict(x=1, y=1, z=5)  # étire axe z
+            aspectratio=dict(x=1, y=1, z=7)  # étire axe z
         ),
         title=f"Trajectoires des experts ({min(len(TRAJ), max_tokens)} tokens)",
         width=900, height=700
@@ -149,15 +149,47 @@ def plot_all_trajectories_3d(max_tokens=500, save_path=None):
     fig.write_html(str(save_path))
     print(f"Figure 3D interactive → {save_path}")
 
+# ────────────────────────── Fréquence token_id ──────────────────────────
+def analyse_token_id_distribution():
+    token_ids = [tok[0] for tok in data]
+    freqs = torch.bincount(torch.tensor(token_ids))
+    freqs = freqs.float() / freqs.sum()  # Normalisation
+    return freqs
+
+def build_TRAJ_tkMAX(tk_max=13):
+    trajs = []
+    for tok_id, layers, _ in data:
+        traj = []
+        if tok_id == tk_max:
+            for layer_logits in layers:              # 8 logits
+                top2 = torch.topk(layer_logits, TOPK).indices.tolist()
+                traj.append(tuple(sorted(top2)))
+            trajs.append(traj)
+    print(f"lg de trajs pour token = {tk_max}:", len(trajs))
+    return trajs
+
+TRAJ_tkMAX = build_TRAJ_tkMAX()
+
 # ───────────────────────────── Main ──────────────────────────────
 if __name__ == "__main__":
+    """"
     print("→ Calcul fréquence d’activation…")
     freq_norm = calc_freq_norm()
     plot_expert_distribution(freq_norm)
-
+    
     # Exemple : co-occurrence couches 0 et 1
-    trace_couples_matrix(0, 1)
+    #trace_couples_matrix(0, 1)
 
-    # Trajectoires 3D (sous-échantillon pour la lisibilité)
-    plot_all_trajectories_3d(max_tokens=1000, 
-                             save_path=FIG_DIR / f"trajectories_3d_{DATASET_NAME}.html")
+
+    freqs = analyse_token_id_distribution()
+    print("id max :", freqs.argmax().item(), "avec fréquence :", freqs.max().item())
+    
+    #Trajectoires 3D (sous-échantillon pour la lisibilité)
+    #plot_all_trajectories_3d(max_tokens=1000,save_path=FIG_DIR / f"trajectories_3d_{DATASET_NAME}.html")
+    """
+    # Trajectoires pour le token_id 13
+    plot_all_trajectories_3d(TRAJ=TRAJ_tkMAX, max_tokens=1000,
+                             save_path=FIG_DIR / f"trajectories_3d_tkMAX_{DATASET_NAME}.html")
+    trace_couples_matrix(0, 1, TRAJ=TRAJ_tkMAX, 
+                         save_path=FIG_DIR / f"couples_matrix_tkMAX_0_1_{DATASET_NAME}.png")
+    

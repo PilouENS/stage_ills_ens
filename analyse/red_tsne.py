@@ -11,7 +11,7 @@ print(f"{len(data)} tokens chargés")
 # === Préparation des vecteurs de logits ===
 X = []
 
-for token in data:
+for token in tqdm(data, desc="Extraction des logits", unit="token"):
     _, logits_layers, _ = token  # [token_id, [32 × tensor(8)], ...]
     vec = torch.cat(logits_layers).tolist()  # flatten en [256]
     X.append(vec)
@@ -19,10 +19,10 @@ for token in data:
 print("✔️ Extraction des logits terminée.")
 
 # === t-SNE ===
-print("⏳ Lancement de t-SNE...")
+print("Lancement de t-SNE...")
 tsne = TSNE(n_components=2, init='pca', random_state=42, perplexity=30)
 X_2d = tsne.fit_transform(X)
-print("✅ t-SNE terminé.")
+print("t-SNE terminé.")
 
 # === Affichage ===
 plt.figure(figsize=(10, 8))
@@ -31,5 +31,5 @@ plt.title("Projection t-SNE des router logits (32 × 8)")
 plt.xlabel("t-SNE dim 1")
 plt.ylabel("t-SNE dim 2")
 plt.tight_layout()
-plt.savefig("figures/tsne_router_logits.png", dpi=300)
+plt.savefig("figures/Mixtral_8x7B/tsne_router_logits.png", dpi=300)
 plt.show()
