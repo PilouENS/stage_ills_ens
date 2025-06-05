@@ -62,7 +62,7 @@ TRAJ = build_trajectories()     # pré-calcul pour être réutilisé
 assert len(TRAJ) == len(data)
 
 # ─────────────────── 1) Fréquence d’activation ───────────────────
-def calc_freq_norm() -> torch.Tensor:
+def calc_freq_norm(TRAJ=TRAJ):
     """freq[layer, expert] = % d’activation sur tous les tokens."""
     freq = torch.zeros((N_LAYERS, N_EXPERTS), dtype=torch.long)
     for traj in tqdm(TRAJ, desc="Calcul fréquence d'activation"):
@@ -71,10 +71,11 @@ def calc_freq_norm() -> torch.Tensor:
             freq[layer, e2] += 1
     return freq.float() / freq.sum(dim=1, keepdim=True)
 
-def plot_expert_distribution(freq_norm: torch.Tensor):
+def plot_expert_distribution(TRAJ=TRAJ):
+    freq_norm = calc_freq_norm(TRAJ)
     plt.figure(figsize=(12, 6))
     sns.heatmap(freq_norm.T, annot=False, cmap="YlGnBu")
-    plt.title(f"Fréquence normalisée d’activation (dataset : {DATASET_NAME})")
+    plt.title(f"Fréquence normalisée d’activation (dataset : {DATASET_NAME}), nb tokens : {len(TRAJ)}")
     plt.ylabel("Expert")
     plt.xlabel("Couche")
     plt.tight_layout()
@@ -98,7 +99,9 @@ def couples_matrix(layer_a: int, layer_b: int, TRAJ=TRAJ):
 
 def trace_couples_matrix(layer_a: int, layer_b: int, TRAJ=TRAJ, save_path=None):
     M = couples_matrix(layer_a, layer_b, TRAJ=TRAJ)
-    row_norm   = M.float() / M.sum(dim=1, keepdim=True)
+    row_norm = torch.zeros_like(M, dtype=torch.float)
+    for ligne_id in range(len(M)):
+        row_norm[ligne_id] = M[ligne_id] / (M[ligne_id].sum() if M[ligne_id].sum()>0 else 1)
     joint_norm = M.float() / M.sum()
 
     fig, axs = plt.subplots(1, 2, figsize=(20, 8))
@@ -158,6 +161,7 @@ def analyse_token_id_distribution():
 
 def build_TRAJ_tkMAX(tk_max=13):
     trajs = []
+    
     for tok_id, layers, _ in data:
         traj = []
         if tok_id == tk_max:
@@ -170,9 +174,12 @@ def build_TRAJ_tkMAX(tk_max=13):
 
 TRAJ_tkMAX = build_TRAJ_tkMAX()
 
+breakpoint()
+
 # ───────────────────────────── Main ──────────────────────────────
+"""
 if __name__ == "__main__":
-    """"
+    
     print("→ Calcul fréquence d’activation…")
     freq_norm = calc_freq_norm()
     plot_expert_distribution(freq_norm)
@@ -186,10 +193,11 @@ if __name__ == "__main__":
     
     #Trajectoires 3D (sous-échantillon pour la lisibilité)
     #plot_all_trajectories_3d(max_tokens=1000,save_path=FIG_DIR / f"trajectories_3d_{DATASET_NAME}.html")
-    """
+    
     # Trajectoires pour le token_id 13
-    plot_all_trajectories_3d(TRAJ=TRAJ_tkMAX, max_tokens=1000,
-                             save_path=FIG_DIR / f"trajectories_3d_tkMAX_{DATASET_NAME}.html")
+    plot_expert_distribution(TRAJ=TRAJ_tkMAX)
+    
+    
     trace_couples_matrix(0, 1, TRAJ=TRAJ_tkMAX, 
                          save_path=FIG_DIR / f"couples_matrix_tkMAX_0_1_{DATASET_NAME}.png")
-    
+"""

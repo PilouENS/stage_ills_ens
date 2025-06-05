@@ -1,15 +1,8 @@
 # Mixture of experts 
 
 ## Environnement de travail 
-il faut se mettre sur le noeud avant (voir ([use_grid_5000](./use_grid_5000.md)))
-Script bash ([init_mixtral](./pilou_git/init_mixtral_node.sh)) pour mettre en place l'environnement :
-- création d'un venv
-- maj de pip et install des bibli py
-- gestion token huggin face 
-- on se place sur le noeud pour telecharger
-- download transformers en editable 
-à détailler 
-Pour lancer un job sans interactive mode : submit_wait.sh
+ [use_grid_5000](./use_grid_5000.md)
+
 
 ## Objectifs et motivations
 - prédiction des experts utilisés pour un token (prédiction spatiale): pour pouvoir charger les experts en avance notamment
@@ -22,13 +15,17 @@ Pour lancer un job sans interactive mode : submit_wait.sh
 - [AI Expert Speculates on GPT-4 Architecture (wandb.ai)](https://wandb.ai/byyoung3/ml-news/reports/AI-Expert-Speculates-on-GPT-4-Architecture---Vmlldzo0NzA0Nzg4)
 
 ## modèles utilisés
-- Mixtral 8x7B :  (47B parameters (as some are shared between experts), 13B active for inference) via hugging_face/transormers
-- 
+- Mixtral 8x7B :  
+    - 47B parameters (as some are shared between experts), 
+    - 13B active for inference
+    - 32 couches, deux experts parmi 8
+    - via hugging_face/transormers
+    - ~45 GB en 16bit
 
 ## Solutions pour la prédiction d'experts dans llm moe  
 - (1) utilisation des gating functions des couches suivantes (prédiction spatiale)
 - (2) réseau entrainé pour prédire à partir du token
-- (3) corrélation/causalité entre paires d'epxerts
+- (3) corrélation/causalité entre paires d'experts
 
 ### 1 - Gating function
 _Prédictions horizontale (spaciale)_
@@ -42,8 +39,7 @@ Idée d'amélioration :
 
 ### 2 - Réseau 
 Ca peut être une prédiction et spatiale et temporelle 
-Attention à la taille du réseau utilisé, on ne veut pas un 'bazooka' pour tuer un moustique. Cela permet sans doute une précision intéressante mais on perd le côté explicabilité et on n'en apprends 
-pas plus sur les experts. regarder si expertflow serieux.
+Attention à la taille du réseau utilisé, on ne veut pas un 'bazooka' pour tuer un moustique. Cela permet sans doute une précision intéressante mais on perd le côté explicabilité et on n'en apprends pas plus sur les experts. regarder si expertflow serieux.
 
 ### 3 - Statistiques
 On s'intéresse à la causalité ou la corrélation entre les paires d'experts utilisés entre couche puis entre token. Une piste est de trouver une loi conjointe expérimentale entre X et Y (et Z et +), X et Y 
@@ -97,7 +93,7 @@ On trace donc la matrice de co-occurence avec les deux types de normalisation.
 
 
 ### Trajectoires 
-Grâce à la matrice de co-occurence entre deux couches successives on à une information locale. On aimerait étenndre cette information sur l'ensemble des couches pour un token : analyse des trajectoires. 
+Grâce à la matrice de co-occurence entre deux couches successives on a une information locale. On aimerait étenndre cette information sur l'ensemble des couches pour un token : analyse des trajectoires. 
 On peut visualiser les trajectoires de plusieurs manières :
 - réduction de la dimensions des données :
     - PCA
@@ -105,7 +101,19 @@ On peut visualiser les trajectoires de plusieurs manières :
 - Courbes 3D (E1, E2, layer) en refléchissant à dans quel ordre on range E1 et E2 
 - courbes paramétrées f(E1(l), E2(l)) avec l in layer
 
-
+#### Réduction de dimensions 
+Les algorithmes PCA et t-SNE servent à réduire la dimensions de vecteurs pour pouvoir les visualiser dans le plan et potentiellement faire de la segmentation. 
+Pour utiliser ces algo il faut choisir nos vecteurs de départs. Nous avons à dispositions (récupéré depuis le modèle) pour chaque token :
+- son token-id (sortie du tokenizer mixtral)
+- les routeurs logits pour chaque token_id (32 couches * 8 logits)
+- et donc les deux experts utilisés à chaque couche (32 couches * 2 experts_indices )
+- l'embedding (4096 logits)
+- hidden_vectors (32 * 4096 logits)
+Et on veut donc ici représenter chaque token par un vecteur de grande dimension.  
+Pour cela on a plusieurs possibilité :
+- vecteur de taille 2*32 = 64 contenant les indices des experts utilisés pour chaque couche  
+Vecteur le plus petit que l'on puisse prendre qui contient l'information la plus importante (celle que l'on veut prédire). Il faut faire attention ou en tout cas refléchir à comment on ordonne E1 et E2 les deux experts de la couche l. Est-ce qu'on met tjrs l'expert le plus probable en premier : mais dcp (7, 3) != (3, 7) donc peut être pas très logique pcq pour la prédiction c'est presque la même chose pour nous. Ou alors on peut ordonner tjrs de la même manière en mettant par exemple l'indice le plus grand en premier ainsi (3,7) = (7,3). On perd icj l'information de l'expert le plus probable mais on harmonise les couples (28 couples possibles au lieux de 56). 
+- vecteur de taille 32*8=256 
 
 
 ### Similarité des experts 
