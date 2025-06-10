@@ -39,7 +39,7 @@ N_EXPERTS  = 8           # experts par couche
 TOPK       = 2           # nb d’experts que l’on retient (top-k)
 
 # ──────────────────────── Chargement data ────────────────────────
-data = torch.load(PT_PATH, map_location="cpu")
+data = torch.load(PT_PATH, map_location="cuda" if torch.cuda.is_available() else "cpu")
 print(len(data), "tokens chargés depuis", PT_PATH)
 
 # ──────────────────────── Pré-calcul commun ──────────────────────
@@ -76,7 +76,7 @@ def plot_expert_distribution(TRAJ=TRAJ):
      des experts en fonction des couches."""
     freq_norm = calc_freq_norm(TRAJ)
     plt.figure(figsize=(12, 6))
-    sns.heatmap(freq_norm.T, annot=False, cmap="YlGnBu")
+    sns.heatmap(freq_norm.T, annot=False, cmap="YlGnBu", vmax=1)
     plt.title(f"Fréquence normalisée d’activation (dataset : {DATASET_NAME}), nb tokens : {len(TRAJ)}")
     plt.ylabel("Expert")
     plt.xlabel("Couche")
@@ -175,6 +175,13 @@ def build_TRAJ_tkMAX(tk_max=13):
     return trajs
 
 TRAJ_tkMAX = build_TRAJ_tkMAX()
+
+### ----------- TEST 
+test = []
+for i in range(len(data)):
+    if data[i][0] not in test:
+        test.append(data[i][0])
+    
 
 breakpoint()
 

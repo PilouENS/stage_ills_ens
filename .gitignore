@@ -2,3 +2,5 @@ router_logits_instructions.pt
 router_logits_codealpaca.pt
 outputs/model.output/router_logits_hidden_states_codealpaca.pt
 outputs/model.output/router_logits_hidden_states_INSTRUCTIONS_100.pt
+outputs/model.output/router_logits_hidden_states_helpful-instructions_5.pt
+outputs/prompt/prompts_helpful-instructions_5.txt

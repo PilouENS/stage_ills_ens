@@ -160,4 +160,15 @@ On regarde à chaque fois si on a un hit (expert prédit in experts réalité). 
         *Heatmap illusatrant la fréquence d'utilisation des experts pour le token de démarrage (token_id = 13 pour) Instructions*
 
 - prédiction verticale entre token ??
-- * - * - 
+- 
+
+- tester avec preposition particulière 
+- vmap de 0 à 1 à forcer 
+- verifier coche 33 embeding
+- jitter noise
+- tsne : 32*8 flatten : tous en gris sauf selection de token en couleur : essayer enchainement de token (plus probable avant the +the)
+write; actions dans instructions ; syntaxe vs nm variable
+
+- ajouter info pour heatmap : prendre un token qui arrive souvent avant the et voir heatmap => essayer d'augmenter proba des traj en rajoutant de l'info
+
+- plus tard : class.
