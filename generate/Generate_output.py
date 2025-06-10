@@ -39,7 +39,7 @@ model.eval()  # Met le modèle en mode évaluation
 ### === Chargement du dataset === ###   
 #dataset = load_dataset("HuggingFaceH4/helpful_instructions", split="train[:10000]", trust_remote_code=True)
 #dataset = load_dataset("HuggingFaceH4/testing_codealpaca_small", split="train[:2]", trust_remote_code=True)
-dataset = load_dataset('flytech/python-codes-25k', split="train[:10000]", trust_remote_code=True)
+dataset = load_dataset('flytech/python-codes-25k', split="train[:10]", trust_remote_code=True)
 print(dataset[0].keys())
 
 
@@ -79,6 +79,6 @@ for sample in tqdm(dataset):
     # data de la forme [token_id, [couche][x8], [embedding+couche][x4096]]
 
 
-torch.save(data, "../outputs/model.output/router_logits_hidden_states_INSTRUCTIONS.pt")
+torch.save(data, f"router_logits_hidden_states_FLYTECH.pt")
 print("finito la génération")
 

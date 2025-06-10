@@ -101,7 +101,7 @@ On peut visualiser les trajectoires de plusieurs manières :
 - Courbes 3D (E1, E2, layer) en refléchissant à dans quel ordre on range E1 et E2 
 - courbes paramétrées f(E1(l), E2(l)) avec l in layer
 
-#### Réduction de dimensions 
+#### Réduction de dimensions - flatten
 Les algorithmes PCA et t-SNE servent à réduire la dimensions de vecteurs pour pouvoir les visualiser dans le plan et potentiellement faire de la segmentation. 
 Pour utiliser ces algo il faut choisir nos vecteurs de départs. Nous avons à dispositions (récupéré depuis le modèle) pour chaque token :
 - son token-id (sortie du tokenizer mixtral)
@@ -109,11 +109,17 @@ Pour utiliser ces algo il faut choisir nos vecteurs de départs. Nous avons à d
 - et donc les deux experts utilisés à chaque couche (32 couches * 2 experts_indices )
 - l'embedding (4096 logits)
 - hidden_vectors (32 * 4096 logits)
-Et on veut donc ici représenter chaque token par un vecteur de grande dimension.  
+Pour ces deux algorithmes on veut un vecteur flatten (dim=N*1).
 Pour cela on a plusieurs possibilité :
 - vecteur de taille 2*32 = 64 contenant les indices des experts utilisés pour chaque couche  
 Vecteur le plus petit que l'on puisse prendre qui contient l'information la plus importante (celle que l'on veut prédire). Il faut faire attention ou en tout cas refléchir à comment on ordonne E1 et E2 les deux experts de la couche l. Est-ce qu'on met tjrs l'expert le plus probable en premier : mais dcp (7, 3) != (3, 7) donc peut être pas très logique pcq pour la prédiction c'est presque la même chose pour nous. Ou alors on peut ordonner tjrs de la même manière en mettant par exemple l'indice le plus grand en premier ainsi (3,7) = (7,3). On perd icj l'information de l'expert le plus probable mais on harmonise les couples (28 couples possibles au lieux de 56). 
-- vecteur de taille 32*8=256 
+- vecteur de taille 32*8=256 conentnant les logits pour chaque expert pour chaque couche
+- vecteur de taille 32*4=128 contenant les logits et indice des deux experts choisis pour chaque couche : mais jsp comment ranger ça
+
+#### Réduction de dimensions - multidim
+Ils existent aussi des algorithmes qui ne necessitent pas de flatten l'information en entrée (typiquement pour des images en RGB c'est mieux).
+ 
+
 
 
 ### Similarité des experts 
@@ -126,3 +132,32 @@ On regarde à chaque fois si on a un hit (expert prédit in experts réalité). 
 
 
 ## Résultats
+
+
+
+# Reunions MAJ
+
+## semaine du 3 Juin
+- papier de ELI : lien entre grammaire des tokens et trajectoires dans les routeurs (clusters par type de mot : noms, adj etc) visualisables avec tsne 
+- regarder les trajectoires des tokens avec même id 
+- stockage pour large dataset 
+- heatmap : normalisation par ligne ou sur ensemble de la matrice ? (proba condi ou conjointe)
+- 
+
+## semaine du 10 Juin
+- demande stockage supp de 300G sur le home (en attente)
+- on attends pour faire tourner sur un autre dataset dcp
+- recode la génération des routers logits et hidden vectors + embbedings sans toucher à modeling
+- recode des fonctions d'analyses pour s'adapter au nouveau format de generation
+- visualisation des deux heatmaps
+- visualisation pour 2 token_id (les deux plus présents dans mon échantillon) des experts les plus used
+    - pas super marque voir pas du tout suivant le token_id et ce même 
+    - **Pour le token de démarrage (token_id = 1) Instructions :**  
+        ![](./figures/Mixtral_8x7B/heatmap_EXP_tk_id_1_INSTRUCTIONS_100.png)  
+        *Heatmap illusatrant la fréquence d'utilisation des experts pour le token de démarrage (token_id = 1 pour) Instructions*
+    - **Pour le token le plus fréquent (the) (token_id = 13) Instructions :**  
+        ![](./figures/Mixtral_8x7B/heatmap_EXP_tk_id_13_INSTRUCTIONS_100.png)  
+        *Heatmap illusatrant la fréquence d'utilisation des experts pour le token de démarrage (token_id = 13 pour) Instructions*
+
+- prédiction verticale entre token ??
+- * - * - 

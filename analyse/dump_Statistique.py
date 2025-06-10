@@ -71,7 +71,9 @@ def calc_freq_norm(TRAJ=TRAJ):
             freq[layer, e2] += 1
     return freq.float() / freq.sum(dim=1, keepdim=True)
 
-def plot_expert_distribution(TRAJ=TRAJ):
+def plot_expert_distribution(TRAJ=TRAJ): 
+    """Trace la heatmap de la fréquence d’activation
+     des experts en fonction des couches."""
     freq_norm = calc_freq_norm(TRAJ)
     plt.figure(figsize=(12, 6))
     sns.heatmap(freq_norm.T, annot=False, cmap="YlGnBu")
