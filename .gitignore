@@ -6,3 +6,4 @@ outputs/model.output/router_logits_hidden_states_helpful-instructions_5.pt
 outputs/prompt/prompts_helpful-instructions_5.txt
 outputs/model.output/router_logits_hidden_states_helpful-instructions_1000.pt
 outputs/prompt/prompts_helpful-instructions_1000.txt
+outputs/model.output/router_logits_hidden_states_helpful-instructions_10.pt
