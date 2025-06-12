@@ -91,6 +91,23 @@ Mais dcp elle ne permet pas de détecter **régularités locales** ou des règle
 #### Visualisation et résultats
 On trace donc la matrice de co-occurence avec les deux types de normalisation. 
 
+### Heatmap d'utilisation des experts
+On trace l'utilisation des experts en fonctions des couches à partir des trajectoires. On prend ici les trajectoires qui nous intéresse, soit pour l'ensemble des token : 
+![](figures/Mixtral_8x7B/heatmap_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions*  
+On observe bien que même pour un nombre restreint de d'entrée (ici 10 prompts => 448 tokens). On a une utilisation quasi-uniforme des experts à travers les couches. On retrouve ici le souhait d'équilibrer l'utilisation des experts lors de l'entrainement (notamment avec du router_noise) afin de tirer parti de l'ensemble des experts et donc de leurs poids.  
+On peut aussi regarder les trajectoires d'un token donné, par exemple ici avec le token de start de chaque prompt :
+![](figures/Mixtral_8x7B/heatmap_tk1_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token de start*  
+On a ici une heatmap déterministe avec une seule trajectoire qlq soit le token de start pris dans le dataset. C'est un résultat rassurant car lors du forward le contexte ne contient que le passé et donc ce token (au début donc contexte "vide") a tjrs le même contexte.   
+On regarde maintenant au contraire le token 28725 (',') qui est dans des contextes très différents à chaque fois.
+![](figures/Mixtral_8x7B/heatmap_tk28725_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token ','*  
+On a ici quelque chose de bcp plus 'flou', il n'y a pas une trajectoire qui sort du lot même si on peut observer des experts plus utilisés.   
+On trace ici les statistiques avec pour seule info le token_id. Je veux regarder maintenant les trajectoires en ayant comme informartion le token_id du token qui m'intérrese mais aussi le token_id du token précédent. 
+Je choisis donc un token en particulier : 28804 ('?') je regarde son utilisation des experts sans informations (je construit les trajectoires que pour ce token_id) :
+![](figures/Mixtral_8x7B/heatmap_tk28804_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token '?'*  
+On retrouve ici qlq chose de similaire que pour le token ',' car ce sont des token au cotexte très varié.  
+On rajoute maintenant l'information du token_id précédent pour voir si on converge vers une trajectoire. 
+Pour faire cella on cherche les token '?' dans data et on build sa trajectoire ssi le token_id du token précédent dans data et celui du toekn '_it' car dans ce petit dataset on a plusieurs fois l'enchainement '_it ?'. 378 et 28804
+
 
 ### Trajectoires 
 Grâce à la matrice de co-occurence entre deux couches successives on a une information locale. On aimerait étenndre cette information sur l'ensemble des couches pour un token : analyse des trajectoires. 
@@ -142,7 +159,7 @@ On regarde à chaque fois si on a un hit (expert prédit in experts réalité). 
 - regarder les trajectoires des tokens avec même id 
 - stockage pour large dataset 
 - heatmap : normalisation par ligne ou sur ensemble de la matrice ? (proba condi ou conjointe)
-- 
+
 
 ## semaine du 10 Juin
 - demande stockage supp de 300G sur le home (en attente)
@@ -159,16 +176,31 @@ On regarde à chaque fois si on a un hit (expert prédit in experts réalité). 
         ![](./figures/Mixtral_8x7B/heatmap_EXP_tk_id_13_INSTRUCTIONS_100.png)  
         *Heatmap illusatrant la fréquence d'utilisation des experts pour le token de démarrage (token_id = 13 pour) Instructions*
 
-- prédiction verticale entre token ??
-- 
+UP : figures pas bonnes donc deleted
+Dans la heatmap du token d'initialisation on observe du bruit au moins dans la selection des experts de la couches 0. En effet à priori cette couche est déterministe car elle n'a pas d'autre contexte. On a vérifié et router_jitter_noise = 0.
+On a créé [id_to_token](./outputs/prompt/id_to_token.pt) et [token_to_id](./outputs/prompt/token_to_id.pt) pour avoir les relations entre token_id et le vocabulaire.
+
 
 - tester avec preposition particulière 
-- vmap de 0 à 1 à forcer 
-- verifier coche 33 embeding
+- vmap de 0 à 1 à forcer DONE : il faut retracer mais pas de ressources
+- verifier couche 33 embeding
 - jitter noise
 - tsne : 32*8 flatten : tous en gris sauf selection de token en couleur : essayer enchainement de token (plus probable avant the +the)
 write; actions dans instructions ; syntaxe vs nm variable
 
 - ajouter info pour heatmap : prendre un token qui arrive souvent avant the et voir heatmap => essayer d'augmenter proba des traj en rajoutant de l'info
 
-- plus tard : class.
+- plus tard : classificateur : obj. final
+
+### Feuille de route :
+- generate output pour trois dataset : helpful instr; code; autre à choisir. 
+- analyse des token les plus used
+- verifier que same(token_id) => same(embedding)
+- regarder enchainement de token pour voir si ajout du contexte comme informations nous aide 
+- regarder debut1 + mot1 et debut1 + mot2 si suivant la longueur de début ça nous aide à prédire la traj de mot et si c'est robuste aux variations. 
+
+
+
+Recode PROPRE de toute la génération on ests ur que c'est good au moins. 
+
+
