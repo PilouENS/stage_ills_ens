@@ -27,7 +27,7 @@ import plotly.graph_objects as go
 
 # ────────────────────────── Paramètres ───────────────────────────
 # Chemin du fichier à analyser
-DATASET_NAME = "INSTRUCTIONS_100"          # "INSTRUCTIONS_100", "codealpaca"
+DATASET_NAME = "helpful-instructions_10"          # "INSTRUCTIONS_100", "codealpaca"
 PT_PATH = Path(f"outputs/model.output/router_logits_hidden_states_{DATASET_NAME}.pt")
 
 FIG_DIR = Path("figures/Mixtral_8x7B")
@@ -71,7 +71,7 @@ def calc_freq_norm(TRAJ=TRAJ):
             freq[layer, e2] += 1
     return freq.float() / freq.sum(dim=1, keepdim=True)
 
-def plot_expert_distribution(TRAJ=TRAJ): 
+def plot_expert_distribution(name, TRAJ=TRAJ): 
     """Trace la heatmap de la fréquence d’activation
      des experts en fonction des couches."""
     freq_norm = calc_freq_norm(TRAJ)
@@ -81,10 +81,10 @@ def plot_expert_distribution(TRAJ=TRAJ):
     plt.ylabel("Expert")
     plt.xlabel("Couche")
     plt.tight_layout()
-    out = FIG_DIR / f"heatmap_experts_{DATASET_NAME}.png"
-    plt.savefig(out, dpi=300)
+    save_path = FIG_DIR / f"{name}"
+    plt.savefig(save_path, dpi=300)
     plt.close()
-    print(f" Heatmap experts sauvegardée → {out}")
+    print(f" Heatmap experts sauvegardée → {save_path}")
 
 # ─────────────── 2) Matrice de co-occurrence couples ─────────────
 def couples_matrix(layer_a: int, layer_b: int, TRAJ=TRAJ):
@@ -161,7 +161,7 @@ def analyse_token_id_distribution():
     freqs = freqs.float() / freqs.sum()  # Normalisation
     return freqs
 
-def build_TRAJ_tkMAX(tk_max=13):
+def build_TRAJ_fromTKID(tk_max=13):
     trajs = []
     
     for tok_id, layers, _ in data:
@@ -174,14 +174,38 @@ def build_TRAJ_tkMAX(tk_max=13):
     print(f"lg de trajs pour token = {tk_max}:", len(trajs))
     return trajs
 
-TRAJ_tkMAX = build_TRAJ_tkMAX()
+def build_TRAJ_fromDATA_ID(data_id):
+    trajs = []
+    
+    for id in data_id:
+        traj = []
+        _, layers, _ = data[id]
+        for layer_logits in layers:              # 8 logits
+            top2 = torch.topk(layer_logits, TOPK).indices.tolist()
+            traj.append(tuple(sorted(top2)))
+        trajs.append(traj)
+    print(f"lg de trajs pour id = {data_id} : ", len(trajs))
+    return trajs
+
 
 ### ----------- TEST 
-test = []
-for i in range(len(data)):
-    if data[i][0] not in test:
-        test.append(data[i][0])
-    
+def rang_INdata_fromtk_id(tk=13):
+    "retourne les indices des tokens dans data pour le token_id donné"
+    id = []
+    for i in range(len(data)):
+        if data[i][0] == tk:
+            id.append(i)
+    print(f"lg de trajs pour token = {tk}:", len(id))
+    return id
+
+def rang_INdata_from_2TK(tkPREC, tkCIBLE):
+    "retourne les indices des tokens dans data pour le token cible ssi il est precede par le token precedent"
+    id = []
+    for i in range(len(data)):
+        if data[i][0] == tkCIBLE and data[i-1][0] == tkPREC:
+            id.append(i)
+    print(f"token précédent {tkPREC} et cible {tkCIBLE} : lg de trajs :", len(id))
+    return id
 
 breakpoint()
 
