@@ -1,12 +1,12 @@
 """
-script to genreate outputs from the Mixtral-8x7B-Instruct-v0.1 model using output_router_logits and output_hidden_states
+script to genreate outputs from the Mixtral-8x7B-Instruct-v0.1 model using ONLY output_router_logits 
 on a pas besoin de mofier modeling_mixtral.py
 plusieurs datasets sont disponibles pour tester le script
 save les outputs dans un fichier .pt 
-    de la forme (token_ids, router_logits, hidden_states)
+    de la forme (token_ids, [router_logits], [])]
         data[0][token_id]
         data[1][layer][token number][poids x8]
-        data[2][embedding+layer][token number][hidden_states x 4096]
+        data[2][]
         
 """
 
@@ -34,7 +34,7 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype=torch.float16
 )
 model.eval()  # Met le modèle en mode évaluation
-taille = 1000
+taille = 10000
 dataset_name = "helpful-instructions"  # Nom du dataset à utiliser
 # dataset_name = "codealpaca"  # Autre exemple de dataset
 # dataset_name = "python-codes-25k"  # Autre exemple de dataset
@@ -63,10 +63,9 @@ for sample in tqdm(dataset):
     #print("\n\n")
 
     with torch.no_grad():
-        outputs = model(**inputs, output_hidden_states=True, output_router_logits=True)
+        outputs = model(**inputs, output_hidden_states=False, output_router_logits=True)
     router_logits_PROMPT = outputs.router_logits  #[couche][token number][poids x8] = 32xNB_tokenx8
-    hidden_states_PROMPT = outputs.hidden_states  #[embedding+layer][token number][hidden_states x 4096] = 33xNB_tokenx4096
-    
+
     data_new = []  # Liste pour stocker les données formatées pour chaque token
     for tk in range(len(router_logits_PROMPT[0])):
         data_new.append([token_ids[tk], [], []])  # Initialisation de data_new pour chaque token
@@ -76,21 +75,18 @@ for sample in tqdm(dataset):
     for l in range(len(router_logits_PROMPT)):
         for tk in range(len(router_logits_PROMPT[l])):
             data_new[tk][1].append(router_logits_PROMPT[l][tk].to("cpu"))
-            data_new[tk][2].append(hidden_states_PROMPT[l][0][tk].to("cpu"))  # On utilise [0] pour accéder à la première dimension des états cachés
-    
-    for tk in range(len(router_logits_PROMPT[l])):
-        data_new[tk][2].append(hidden_states_PROMPT[l+1][0][tk].to("cpu")) #embedding
+       
 
     for elm in data_new:
         data.append(elm)  # On ajoute les données formatées pour chaque token à la liste data
 
-    del outputs, router_logits_PROMPT, hidden_states_PROMPT
+    del outputs, router_logits_PROMPT, data_new
     torch.cuda.empty_cache()
 
     # data de la forme [token_id, [couche][x8], [embedding+couche][x4096]]
 
 
-torch.save(data, f"router_logits_hidden_states_{dataset_name}_{taille}.pt")
+torch.save(data, f"OL_router_logits{dataset_name}_{taille}.pt")
 
 with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
     f.write(f"Dataset: {dataset_name}, Taille: {taille}\n\n")
@@ -101,5 +97,5 @@ with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
         f.write("\n\n") # Séparateur entre les entrées
 
 
-print(f"finito la génération, save dans router_logits_hidden_states_{dataset_name}_{taille}.pt et prompts_{dataset_name}_{taille}.pt")
+print(f"finito la génération, save dans OL_router_logits{dataset_name}_{taille}.pt et OLRLprompts_{dataset_name}_{taille}.pt")
 

@@ -28,8 +28,8 @@ import plotly.graph_objects as go
 # ────────────────────────── Paramètres ───────────────────────────
 # Chemin du fichier à analyser
 DATASET_NAME = "helpful-instructions_10"          # "INSTRUCTIONS_100", "codealpaca"
-PT_PATH = Path(f"outputs/model.output/router_logits_hidden_states_{DATASET_NAME}.pt")
-
+#PT_PATH = Path(f"outputs/model.output/router_logits_hidden_states_{DATASET_NAME}.pt")
+PT_PATH = Path("EnattandantHELPFULINSTR10000OLRL.pt")
 FIG_DIR = Path("figures/Mixtral_8x7B")
 FIG_DIR.mkdir(parents=True, exist_ok=True)  # Crée le dossier s'il n'existe pas
 
