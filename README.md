@@ -107,7 +107,7 @@ Je choisis donc un token en particulier : 28804 ('?') je regarde son utilisation
 On retrouve ici qlq chose de similaire que pour le token ',' car ce sont des token au cotexte très varié.  
 On rajoute maintenant l'information du token_id précédent pour voir si on converge vers une trajectoire. 
 Pour faire cella on cherche les token '?' dans data et on build sa trajectoire ssi le token_id du token précédent dans data et celui du toekn '_it' car dans ce petit dataset on a plusieurs fois l'enchainement '_it ?'. 378 et 28804
-
+On observe que
 
 ### Trajectoires 
 Grâce à la matrice de co-occurence entre deux couches successives on a une information locale. On aimerait étenndre cette information sur l'ensemble des couches pour un token : analyse des trajectoires. 

@@ -35,9 +35,9 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 model.eval()  # Met le modèle en mode évaluation
 taille = 10000
-dataset_name = "helpful-instructions"  # Nom du dataset à utiliser
+# dataset_name = "helpful-instructions"  # Nom du dataset à utiliser
 # dataset_name = "codealpaca"  # Autre exemple de dataset
-# dataset_name = "python-codes-25k"  # Autre exemple de dataset
+dataset_name = "python-codes-25k"  # Autre exemple de dataset
 ### === Chargement du dataset === ###   
 dataset = load_dataset(f"HuggingFaceH4/{dataset_name}", split=f"train[:{taille}]", trust_remote_code=True)
 print(dataset[0].keys())
@@ -50,9 +50,9 @@ data = []
 print(f"router_jitter_noise : {model.config.router_jitter_noise}")
 
 for sample in tqdm(dataset): 
-    prompt = sample["demonstration"] #helpful_instructions
+    #prompt = sample["demonstration"] #helpful_instructions
     #prompt = sample.get("prompt", "").strip() #codealpaca
-    #prompt = sample["output"]  # python-codes-25k
+    prompt = sample["output"]  # python-codes-25k
     #print("prompt:", prompt, "\n")
 
     inputs = tokenizer(prompt, return_tensors="pt", truncation=False)

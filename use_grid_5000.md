@@ -12,8 +12,9 @@ ssh rennes.g5k
 #### Interactive
 - `oarsub -I -l nodes=1/gpu=1,walltime=4:00:00`
 - `oarsub -l host=1/gpu=2,walltime=0:30 -I`
-- `oarsub -I -l ndodes=1/gpu=2,walltime=03:00:00 -q besteffort  -p "gpu_model='A40'" `  
+- `oarsub -I -l nodes=1/gpu=2,walltime=03:00:00 -q besteffort  -p "gpu_model='A40'" `  
 - `oarsub -I -l gpu=1,walltime=03:00:00 -q besteffort -p "gpu_model='H100 NVL'"`
+- `oarsub -I -l nodes=1/gpu=3,walltime=03:00:00 -q besteffort -p "gpu_mem>=60000"` 
 -I pour interactive, possible de spécifier nb de noeuds, de gpu/cpu, le modèle de gpu ou la mémoire totale des gpu. Pour Mixtral ~46GB je choisis souvent 2 A40.  
  `device_map="auto"` (arg de model) gère la répartition des tâches à travers les différents gpu dispo.
 Possible de `breakpoint()` pour avoir une console interactive dans le script.
