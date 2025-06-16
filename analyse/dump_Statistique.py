@@ -27,9 +27,9 @@ import plotly.graph_objects as go
 
 # ────────────────────────── Paramètres ───────────────────────────
 # Chemin du fichier à analyser
-DATASET_NAME = "helpful-instructions_10"          # "INSTRUCTIONS_100", "codealpaca"
+DATASET_NAME = "helpful-instructions_1000"          # "INSTRUCTIONS_100", "codealpaca"
 #PT_PATH = Path(f"outputs/model.output/router_logits_hidden_states_{DATASET_NAME}.pt")
-PT_PATH = Path("EnattandantHELPFULINSTR10000OLRL.pt")
+PT_PATH = Path("pilou_git/outputs/model.output/OL_router_logitshelpful-instructions_10000.pt")
 FIG_DIR = Path("figures/Mixtral_8x7B")
 FIG_DIR.mkdir(parents=True, exist_ok=True)  # Crée le dossier s'il n'existe pas
 
@@ -39,7 +39,7 @@ N_EXPERTS  = 8           # experts par couche
 TOPK       = 2           # nb d’experts que l’on retient (top-k)
 
 # ──────────────────────── Chargement data ────────────────────────
-data = torch.load(PT_PATH, map_location="cuda" if torch.cuda.is_available() else "cpu")
+data = torch.load(PT_PATH, map_location="cuda" if torch.cuda.is_available() else "cpu")[:1000]
 print(len(data), "tokens chargés depuis", PT_PATH)
 
 # ──────────────────────── Pré-calcul commun ──────────────────────
@@ -50,7 +50,7 @@ IDX2PAIR   = {v: k for k, v in pair2idx.items()}                 # 0-27->(i,j)
 # Pour chaque token : [ (e1, e2) ] × 32
 def build_trajectories():
     trajs = []
-    for tok_id, layers, _ in data:
+    for _, layers, _ in tqdm(data):
         traj = []
         for layer_logits in layers:              # 8 logits
             top2 = torch.topk(layer_logits, TOPK).indices.tolist()

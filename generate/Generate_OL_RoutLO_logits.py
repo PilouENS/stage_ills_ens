@@ -35,11 +35,11 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 model.eval()  # Met le modèle en mode évaluation
 taille = 10000
-# dataset_name = "helpful-instructions"  # Nom du dataset à utiliser
+# dataset_name = "HuggingFaceH4/helpful-instructions"  # Nom du dataset à utiliser
 # dataset_name = "codealpaca"  # Autre exemple de dataset
-dataset_name = "python-codes-25k"  # Autre exemple de dataset
+dataset_name = "flytech/python-codes-25k"  # Autre exemple de dataset
 ### === Chargement du dataset === ###   
-dataset = load_dataset(f"HuggingFaceH4/{dataset_name}", split=f"train[:{taille}]", trust_remote_code=True)
+dataset = load_dataset(f"{dataset_name}", split=f"train[:{taille}]", trust_remote_code=True)
 print(dataset[0].keys())
 print(model.config)  # Affiche la configuration du modèle
 
