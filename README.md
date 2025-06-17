@@ -93,21 +93,22 @@ On trace donc la matrice de co-occurence avec les deux types de normalisation.
 
 ### Heatmap d'utilisation des experts
 On trace l'utilisation des experts en fonctions des couches à partir des trajectoires. On prend ici les trajectoires qui nous intéresse, soit pour l'ensemble des token : 
-![](figures/Mixtral_8x7B/heatmap_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions*  
+![](./figures/Mixtral_8x7B/helpful_instr/10prompts/heatmap_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions*  
 On observe bien que même pour un nombre restreint de d'entrée (ici 10 prompts => 448 tokens). On a une utilisation quasi-uniforme des experts à travers les couches. On retrouve ici le souhait d'équilibrer l'utilisation des experts lors de l'entrainement (notamment avec du router_noise) afin de tirer parti de l'ensemble des experts et donc de leurs poids.  
 On peut aussi regarder les trajectoires d'un token donné, par exemple ici avec le token de start de chaque prompt :
-![](figures/Mixtral_8x7B/heatmap_tk1_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token de start*  
+![](./figures/Mixtral_8x7B/helpful_instr/10prompts/heatmap_tk1_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token de start*  
 On a ici une heatmap déterministe avec une seule trajectoire qlq soit le token de start pris dans le dataset. C'est un résultat rassurant car lors du forward le contexte ne contient que le passé et donc ce token (au début donc contexte "vide") a tjrs le même contexte.   
 On regarde maintenant au contraire le token 28725 (',') qui est dans des contextes très différents à chaque fois.
-![](figures/Mixtral_8x7B/heatmap_tk28725_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token ','*  
+![](./figures/Mixtral_8x7B/helpful_instr/10prompts/heatmap_tk28725_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token ','*  
 On a ici quelque chose de bcp plus 'flou', il n'y a pas une trajectoire qui sort du lot même si on peut observer des experts plus utilisés.   
 On trace ici les statistiques avec pour seule info le token_id. Je veux regarder maintenant les trajectoires en ayant comme informartion le token_id du token qui m'intérrese mais aussi le token_id du token précédent. 
 Je choisis donc un token en particulier : 28804 ('?') je regarde son utilisation des experts sans informations (je construit les trajectoires que pour ce token_id) :
-![](figures/Mixtral_8x7B/heatmap_tk28804_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token '?'*  
+![](./figures/Mixtral_8x7B/helpful_instr/10prompts/heatmap_tk28804_experts_helpful-instructions_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token '?'*  
 On retrouve ici qlq chose de similaire que pour le token ',' car ce sont des token au cotexte très varié.  
 On rajoute maintenant l'information du token_id précédent pour voir si on converge vers une trajectoire. 
 Pour faire cella on cherche les token '?' dans data et on build sa trajectoire ssi le token_id du token précédent dans data et celui du toekn '_it' car dans ce petit dataset on a plusieurs fois l'enchainement '_it ?'. 378 et 28804
-On observe que
+![](./figures/Mixtral_8x7B/helpful_instr/10prompts/heatmap_itQM_helplfinstr_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token '?'*  
+Bon on a que deux token ou l'enchainement arrive donc pas assez representatif mais dans l'idée ca fait ce qu'on veut. On regarde maintenant sur un jeux de données bcp plus gros (10000 prompts => 630k tokens).
 
 ### Trajectoires 
 Grâce à la matrice de co-occurence entre deux couches successives on a une information locale. On aimerait étenndre cette information sur l'ensemble des couches pour un token : analyse des trajectoires. 
@@ -170,10 +171,10 @@ On regarde à chaque fois si on a un hit (expert prédit in experts réalité). 
 - visualisation pour 2 token_id (les deux plus présents dans mon échantillon) des experts les plus used
     - pas super marque voir pas du tout suivant le token_id et ce même 
     - **Pour le token de démarrage (token_id = 1) Instructions :**  
-        ![](./figures/Mixtral_8x7B/heatmap_EXP_tk_id_1_INSTRUCTIONS_100.png)  
+        ![](./figures/Mixtral_8x7B/helpful_instr/10prompts/heatmap_;tk1_experts_helpful-instructions_10.png)  
         *Heatmap illusatrant la fréquence d'utilisation des experts pour le token de démarrage (token_id = 1 pour) Instructions*
     - **Pour le token le plus fréquent (the) (token_id = 13) Instructions :**  
-        ![](./figures/Mixtral_8x7B/heatmap_EXP_tk_id_13_INSTRUCTIONS_100.png)  
+        ![](./figures/Mixtral_8x7B/helpful_instr/10prompts/heatmap_EXP_tk_id_13_INSTRUCTIONS_100.png)  
         *Heatmap illusatrant la fréquence d'utilisation des experts pour le token de démarrage (token_id = 13 pour) Instructions*
 
 UP : figures pas bonnes donc deleted
@@ -198,9 +199,18 @@ write; actions dans instructions ; syntaxe vs nm variable
 - verifier que same(token_id) => same(embedding)
 - regarder enchainement de token pour voir si ajout du contexte comme informations nous aide 
 - regarder debut1 + mot1 et debut1 + mot2 si suivant la longueur de début ça nous aide à prédire la traj de mot et si c'est robuste aux variations. 
-
-
-
 Recode PROPRE de toute la génération on ests ur que c'est good au moins. 
+
+### 17 Juin
+- on a du stockage, c'est cool mais j'arrive pas à accéder à group storage
+- rennes full : checker lille
+- il y a de l'info dans les token_id : on arrive a voir des pattern de trajectoires même en ayant juste le token_id d'entrée, encore plus si token_id d'entrée + celui d'avant. IL faut trouver une métrique pour mesurer ça : le hit rate est une première approche. On prend comme prédiction déterministe les top2 experts enregistrés dans nos data et on compare. 
+
+
+- tsne to check pour visualisation et explicabilité
+- prédicteur :
+    - token_id d'entrée + n token_id avant : ça nous donne une prédiction déterministe mais trop lourd. On veut donc entrainé un PETIT prédicteur pour tirer parti des redondances avec en entrée 
+    - sans le token_id d'entrée ! (objectif final) : on a donc n token_id précédent + hidden_vectors de la couche à laquelle on veut prédire par exemple. première étape on garde la dim 4096 mais ça serait cool de réduire (encodeur). Dans le hidden_vector à la couche l du token t-1 on commence à avoir l'information du token t mais faut regarder si embedding d'input = embedding d'output pour pouvoir utiliser  le rapport token_id <=> embedding .
+
 
 

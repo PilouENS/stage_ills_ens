@@ -18,7 +18,7 @@ import os
 import itertools
 from pathlib import Path
 from typing import List, Tuple
-
+import numpy as np
 import torch
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -28,8 +28,8 @@ import plotly.graph_objects as go
 # ────────────────────────── Paramètres ───────────────────────────
 # Chemin du fichier à analyser
 DATASET_NAME = "helpful-instructions_1000"          # "INSTRUCTIONS_100", "codealpaca"
-#PT_PATH = Path(f"outputs/model.output/router_logits_hidden_states_{DATASET_NAME}.pt")
-PT_PATH = Path("pilou_git/outputs/model.output/OL_router_logitshelpful-instructions_10000.pt")
+#DATA_PATH = Path(f"outputs/model.output/router_logits_hidden_states_{DATASET_NAME}.pt")
+DATA_PATH = Path("pilou_git/outputs/model.output/OL_router_logitshelpful-instructions_10000.pt")
 FIG_DIR = Path("figures/Mixtral_8x7B")
 FIG_DIR.mkdir(parents=True, exist_ok=True)  # Crée le dossier s'il n'existe pas
 
@@ -39,8 +39,14 @@ N_EXPERTS  = 8           # experts par couche
 TOPK       = 2           # nb d’experts que l’on retient (top-k)
 
 # ──────────────────────── Chargement data ────────────────────────
-data = torch.load(PT_PATH, map_location="cuda" if torch.cuda.is_available() else "cpu")[:1000]
-print(len(data), "tokens chargés depuis", PT_PATH)
+#data = torch.load(DATA_PATH)
+data = np.load(DATA_PATH, allow_pickle=True)
+print("to list")
+data = data.tolist()  # Pour obtenir une vraie list[list[...]]
+print(len(data), "tokens chargés depuis", DATA_PATH)
+for i in tqdm(range(len(data)), desc="Conversion en tensor"):
+    data[i][1] = [torch.tensor(logits) for logits in data[i][1]]
+
 
 # ──────────────────────── Pré-calcul commun ──────────────────────
 pairs      = list(itertools.combinations(range(N_EXPERTS), 2))   # [(0,1)…]
@@ -76,7 +82,7 @@ def plot_expert_distribution(name, TRAJ=TRAJ):
      des experts en fonction des couches."""
     freq_norm = calc_freq_norm(TRAJ)
     plt.figure(figsize=(12, 6))
-    sns.heatmap(freq_norm.T, annot=False, cmap="YlGnBu", vmax=1)
+    sns.heatmap(freq_norm.T, annot=False, cmap="YlGnBu", vmax=0.5)
     plt.title(f"Fréquence normalisée d’activation (dataset : {DATASET_NAME}), nb tokens : {len(TRAJ)}")
     plt.ylabel("Expert")
     plt.xlabel("Couche")
@@ -188,7 +194,7 @@ def build_TRAJ_fromDATA_ID(data_id):
     return trajs
 
 
-### ----------- TEST 
+### ----------- build traj 
 def rang_INdata_fromtk_id(tk=13):
     "retourne les indices des tokens dans data pour le token_id donné"
     id = []
@@ -207,7 +213,51 @@ def rang_INdata_from_2TK(tkPREC, tkCIBLE):
     print(f"token précédent {tkPREC} et cible {tkCIBLE} : lg de trajs :", len(id))
     return id
 
+def calcul_hit_miss(TRAJ=TRAJ):
+    """ Calculer la hit rate et la miss rate
+    a partir des frequences d'activation si on prédit que les experts utilisés sont les plus actifs
+    et on calcule la hit rate et la miss rate """
+    freq_norm = calc_freq_norm(TRAJ=TRAJ)
+    hits, misses = 0, 0
+    prediction = []
+    for layer in freq_norm:
+        prediction.append(torch.topk(layer, TOPK)[1].tolist())
+
+    for traj in TRAJ:
+        for layer in range(len(traj)):
+            top_experts = torch.topk(traj[layer], TOPK)[1].tolist()
+            for exp in top_experts:
+                if exp in prediction[layer]:
+                    hits += 1
+                else:
+                    misses += 1
+                total += 1
+    hit_rate = hits / total if total > 0 else 0
+    miss_rate = misses / total if total > 0 else 0
+    return hit_rate, miss_rate
+        
+            
+
+    total = hits + misses
+    hit_rate = hits / total if total > 0 else 0
+    miss_rate = misses / total if total > 0 else 0
+
+    print(f"Hit rate: {hit_rate:.2f}, Miss rate: {miss_rate:.2f}")
+
+calcul_hit_miss()
+
+
+
+
+
 breakpoint()
+
+id_i_can = rang_INdata_from_2TK(315, 541)
+Traj_i_can = build_TRAJ_fromDATA_ID(id_i_can)
+plot_expert_distribution("heatmap_helpinst10000_i_can.png", TRAJ=Traj_i_can)
+id_can = rang_INdata_fromtk_id(541)
+Traj_can = build_TRAJ_fromDATA_ID(id_can)
+plot_expert_distribution("heatmap_helpinst10000_can.png", TRAJ=Traj_can)
 
 # ───────────────────────────── Main ──────────────────────────────
 """

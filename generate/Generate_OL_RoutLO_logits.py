@@ -14,6 +14,7 @@ import os
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
+import numpy as np
 
 print("début du script de génération des outputs")
 
@@ -35,9 +36,9 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 model.eval()  # Met le modèle en mode évaluation
 taille = 10000
-# dataset_name = "HuggingFaceH4/helpful-instructions"  # Nom du dataset à utiliser
+dataset_name = "HuggingFaceH4/helpful-instructions"  # Nom du dataset à utiliser
 # dataset_name = "codealpaca"  # Autre exemple de dataset
-dataset_name = "flytech/python-codes-25k"  # Autre exemple de dataset
+#dataset_name = "flytech/python-codes-25k"  # Autre exemple de dataset
 ### === Chargement du dataset === ###   
 dataset = load_dataset(f"{dataset_name}", split=f"train[:{taille}]", trust_remote_code=True)
 print(dataset[0].keys())
@@ -86,8 +87,10 @@ for sample in tqdm(dataset):
     # data de la forme [token_id, [couche][x8], [embedding+couche][x4096]]
 
 
-torch.save(data, f"OL_router_logits{dataset_name}_{taille}.pt")
+#torch.save(data, f"OL_router_logits{dataset_name}_{taille}.pt")
+np.save(f"OL_router_logits_{dataset_name}_{taille}.npy", data)
 
+"""
 with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
     f.write(f"Dataset: {dataset_name}, Taille: {taille}\n\n")
     f.write(str(model.config) + "\n\n")  # Écrit la configuration du modèle dans le fichier
@@ -95,7 +98,7 @@ with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
         f.write(str(pro_id[0])+ "\n")  # prompt
         f.write(str(pro_id[1])+ "\n")  # token_ids
         f.write("\n\n") # Séparateur entre les entrées
+"""
 
-
-print(f"finito la génération, save dans OL_router_logits{dataset_name}_{taille}.pt et OLRLprompts_{dataset_name}_{taille}.pt")
+print(f"finito la génération, save dans OL_router_logits{dataset_name}_{taille}.npy et OLRLprompts_{dataset_name}_{taille}.pt")
 
