@@ -238,14 +238,36 @@ Cette semaine, j’ai continué à travailler sur la prédiction des experts act
 ## Étape 1 : Prédicteur statistique simple (profondeur 1)
 
 J’ai commencé par coder un petit prédicteur très simple : pour chaque `token_id`, je regarde dans les données collectées (trajectoires d’experts) quelles sont les paires d’experts les plus souvent activées, couche par couche. Je garde ensuite la paire la plus fréquente pour chaque couche. Ce prédicteur de profondeur 1 donne une base intéressante. Il est naïf, mais pas si mauvais sur les tokens fréquents.
-On regarde ses résultats sur les 100 tokens les plus vu dans data. C'est une première estimation des perf, ça nous permet de regarder si on a de l'info rien que dans le token_id d'entrée. 
+On regarde ses résultats sur les 100 tokens les plus vu dans data. C'est une première estimation des perf, ça nous permet de regarder si on a de l'info rien que dans le token_id d'entrée.
+![](./figures/Predicteur/PRED_det_1_hit_miss_rates.png)  
+*Précision du prédicteur statistique (profondeur 1) sur les 100 tokens les plus fréquents : pour chaque token, on affiche le taux de réussite (hit rate) couche par couche.*
+La précision ici est basée sur le top-2 experts : 100% de précision => 32 * 2 experts correctement prédits = toute la trajectoire est correcte. On observe que pour les tokens les plus fréquents, on arrive à une précision de 66% en moyenne sur les 32 couches, ce qui montre qu'il y a bien de l'information dans le token_id seul. 
+Ca nous donne donc envie de rajouter de l'information avec les token_id précédent pour voir si on arrive à améliorer ça.
+
+J’ai aussi regardé la précision en fonction de la couche. 
+![](./figures/Predicteur/hit_miss_rates_layers_det1.png)
+
+
+J'ai essayé au max de parralleriser la construction du predicteur pour utiliser tous les coeurs de calcul (machien du DER SIEN). Ca va bcp plus vite et en plus j'ai découvert un peu comment ça marché youhou.
 
 
 ## Étape 2 : Extension à une profondeur supérieure 
 
-Dans un second temps, j’ai commencé à construire un prédicteur un peu plus contextuel : l’idée est de passer de `token_id` seul à `(token_{t-1}, token_t)` comme entrée. Cela revient à travailler sur des **bigrams**, c’est-à-dire sur des paires de tokens successifs. Pour chaque bigramme, je vais chercher la paire d’experts la plus probable à chaque couche.
+Dans un second temps, j’ai commencé à construire un prédicteur un peu plus contextuel : l’idée est de passer de `token_id` seul à `(...,token_{t-1}, token_t)` comme entrée. Cela revient à travailler sur des k-uplets de tokens successifs. Pour chaque uplets, je vais chercher la paire d’experts la plus probable à chaque couche.
 
-Techniquement, c’est assez simple à mettre en place car j’ai déjà toutes les trajectoires dans les fichiers générés précédemment. Le plus dur, en fait, c’est la **taille de l’espace des bigrammes**. Il y a potentiellement `|V|²` possibilités (plusieurs millions si on considère un vocabulaire large), donc il faut filtrer ou échantillonner.
+Techniquement, c’est assez simple à mettre en place car j’ai déjà toutes les trajectoires dans les fichiers générés précédemment. Le plus dur, en fait, c’est la **taille de l’espace des paires**. Il y a potentiellement `|V|²` possibilités (avec V = taille du voc, plusieurs millions si on considère un vocabulaire large). On commence à faire ça pour Np paires voir si c'est intéressant déja. Le but ensuite est d'entrainer un modèle léger pour prédire ces paires d’experts en fonction des tokens précédents afin de réduire la taille de l’espace de recherche.
+
+J’ai donc commencé à implémenter cette approche pour les 100 uplets les plus fréquents dans les données. J'ai regardé pour une profondeur de 2 et 3.
+![](./figures/Predicteur/hit_miss_rates_deter_prof2.png)
+**Précision du prédicteur statistique (profondeur 2) sur les 100 uplets les plus fréquents : pour chaque uplet, on affiche le taux de réussite (hit rate) couche par couche.**
+On observe que la précision augmente avec la profondeur.
+
+![](./figures/Predicteur/hit_miss_rates_deter_prof3.png)
+**Précision du prédicteur statistique (profondeur 3) sur les 100 uplets les plus fréquents : pour chaque uplet, on affiche le taux de réussite (hit rate) couche par couche.**
+On voit que la précision augmente encore.
+
+Cette approche nous permet de savoir ou se trouve l'information et si on peut l'exploiter mais reste à prendre avec des pincettes, on regardes les statistiques d'un jeu de données et on prédit sur le même jeu de donnée. On fait l'hypothèses ici que les trajectoires sont stables entre dataset ce qui ne parait pas déconnant si même type de dataset (languageg naturel en anglais ici).
+
 
 ## Étape 3 : Vers un modèle neuronal
 
@@ -258,14 +280,5 @@ Ce modèle permettrait :
 - de réduire la mémoire nécessaire (plus besoin de stocker des millions de lignes),
 - et à terme, d’être utilisé dans des stratégies de préchargement ou de routing prédictif.
 
-## Ce qu’il reste à faire
-
-- Finaliser la génération du dataset d’apprentissage à partir des trajectoires (`X = [token_{t-1}, token_t]`, `Y = experts par couche`)
-- Encoder les sorties proprement (mapping des paires d’experts vers `0–27`)
-- Implémenter le modèle (embeddings + MLP)
-- Tester la qualité des prédictions avec différentes métriques (top-1, top-2, distance aux vrais experts, etc.)
-
----
-
-En résumé, une semaine productive avec une progression naturelle : partant d’un prédicteur simple mais efficace, je me dirige vers quelque chose de plus flexible et généralisable. La suite logique sera d’entraîner ce petit modèle et de voir ce qu’il apprend sur les patterns d’activation des experts.
+à faire 
 
