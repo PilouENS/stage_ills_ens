@@ -10,3 +10,5 @@ outputs/model.output/router_logits_hidden_states_helpful-instructions_10.pt
 analyse/dump_Statistique.py
 outputs/model.output/OL_router_logitshelpful-instructions_10000.pt
 outputs/prompt/prompts_helpful-instructions_10000.txt
+OAR.2979102.stderr
+OAR.2979102.stdout

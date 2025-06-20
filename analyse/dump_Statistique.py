@@ -39,13 +39,15 @@ N_EXPERTS  = 8           # experts par couche
 TOPK       = 2           # nb d’experts que l’on retient (top-k)
 
 # ──────────────────────── Chargement data ────────────────────────
-#data = torch.load(DATA_PATH)
+data = torch.load(DATA_PATH)
+"""
 data = np.load(DATA_PATH, allow_pickle=True)
 print("to list")
 data = data.tolist()  # Pour obtenir une vraie list[list[...]]
 print(len(data), "tokens chargés depuis", DATA_PATH)
 for i in tqdm(range(len(data)), desc="Conversion en tensor"):
     data[i][1] = [torch.tensor(logits) for logits in data[i][1]]
+"""
 
 
 # ──────────────────────── Pré-calcul commun ──────────────────────
@@ -64,9 +66,9 @@ def build_trajectories():
         trajs.append(traj)
     return trajs
 
-TRAJ = build_trajectories()     # pré-calcul pour être réutilisé
-assert len(TRAJ) == len(data)
-
+#TRAJ = build_trajectories()     # pré-calcul pour être réutilisé
+#assert len(TRAJ) == len(data)
+TRAJ = []
 # ─────────────────── 1) Fréquence d’activation ───────────────────
 def calc_freq_norm(TRAJ=TRAJ):
     """freq[layer, expert] = % d’activation sur tous les tokens."""
@@ -218,20 +220,20 @@ def calcul_hit_miss(TRAJ=TRAJ):
     a partir des frequences d'activation si on prédit que les experts utilisés sont les plus actifs
     et on calcule la hit rate et la miss rate """
     freq_norm = calc_freq_norm(TRAJ=TRAJ)
-    hits, misses = 0, 0
+    hits, misses, total = 0, 0, 0
     prediction = []
     for layer in freq_norm:
-        prediction.append(torch.topk(layer, TOPK)[1].tolist())
+        prediction.append(torch.topk(layer, 2)[1].tolist())
 
     for traj in TRAJ:
         for layer in range(len(traj)):
-            top_experts = torch.topk(traj[layer], TOPK)[1].tolist()
-            for exp in top_experts:
-                if exp in prediction[layer]:
+            for top_experts in traj[layer]:
+                if top_experts in prediction[layer]:
                     hits += 1
                 else:
                     misses += 1
                 total += 1
+
     hit_rate = hits / total if total > 0 else 0
     miss_rate = misses / total if total > 0 else 0
     return hit_rate, miss_rate

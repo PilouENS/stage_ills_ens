@@ -1,7 +1,7 @@
 #!/bin/bash
 # 1. On créé virtual env
 cd ~/stage_ills_moe/stage_ILLS
-python -m venv venv-mixtral
+
 # 2. On l'active
 source venv-mixtral/bin/activate
 

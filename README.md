@@ -1,7 +1,7 @@
 # Mixture of experts 
 
 ## Environnement de travail 
- [use_grid_5000](./use_grid_5000.md)
+[use_grid_5000](./use_grid_5000.md)
 
 
 ## Objectifs et motivations
@@ -109,6 +109,18 @@ On rajoute maintenant l'information du token_id précédent pour voir si on conv
 Pour faire cella on cherche les token '?' dans data et on build sa trajectoire ssi le token_id du token précédent dans data et celui du toekn '_it' car dans ce petit dataset on a plusieurs fois l'enchainement '_it ?'. 378 et 28804
 ![](./figures/Mixtral_8x7B/helpful_instr/10prompts/heatmap_itQM_helplfinstr_10.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour token '?'*  
 Bon on a que deux token ou l'enchainement arrive donc pas assez representatif mais dans l'idée ca fait ce qu'on veut. On regarde maintenant sur un jeux de données bcp plus gros (10000 prompts => 630k tokens).
+On regarde l'utilisation générale des tokens :  
+
+On regarde pour un exemple seulement token_id puis token_id avec token_id précédent :
+Dans notre exemple ici 'can' et 'I can', avec can l'entrée du forward où on essaye de prédire. A terme on essayera de se placer que en amont de ce token_id.
+![](./figures/Mixtral_8x7B/helpful_instr/10000prompts/heatmap_helpinst10000_can.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour le token 'can' token_id = 541*   
+On observe quelques pattern, il y a bien de l'information sur l'utilisation des experts dans le token id mais c'est pas suffisant.  
+On rajoute donc l'information du token_id précédent ici avec 'I' par exemple (token_id = 315):
+![](./figures/Mixtral_8x7B/helpful_instr/10000prompts/heatmap_helpinst10000_i_can.png) *Utilisation des experts en fonctions de la couche pour le dataset Helpful-instructions pour le token 'can' précédé du token 'I'*
+La heatmap est plus marqué : on a une trajectoire plus claire qui se dessine mais qlq couches restent compliquées à exploiter : vers layer 16, 17.
+On cherche donc une métrique pour exprimer cet apport d'informations. Une première approche simple mais très cohérante dans notre cas est le hit_rate. On prends comme prédiction les deux experts les plus probables statistiquement par couche et on compare avec la réalité. 
+
+
 
 ### Trajectoires 
 Grâce à la matrice de co-occurence entre deux couches successives on a une information locale. On aimerait étenndre cette information sur l'ensemble des couches pour un token : analyse des trajectoires. 
@@ -136,7 +148,7 @@ Vecteur le plus petit que l'on puisse prendre qui contient l'information la plus
 
 #### Réduction de dimensions - multidim
 Ils existent aussi des algorithmes qui ne necessitent pas de flatten l'information en entrée (typiquement pour des images en RGB c'est mieux).
- 
+
 
 
 
@@ -206,11 +218,54 @@ Recode PROPRE de toute la génération on ests ur que c'est good au moins.
 - rennes full : checker lille
 - il y a de l'info dans les token_id : on arrive a voir des pattern de trajectoires même en ayant juste le token_id d'entrée, encore plus si token_id d'entrée + celui d'avant. IL faut trouver une métrique pour mesurer ça : le hit rate est une première approche. On prend comme prédiction déterministe les top2 experts enregistrés dans nos data et on compare. 
 
+On regarde le hit rate : 
+- en ne connaissant que le token_id pour le token 'can' on a une prédiction de 70% : mesure à prendre avec des pincettes on prends comme prédiction la paire d'expert la plus probable statistiquement sur le dataset et après on test sur le même dataset => regarder sur un autre dataset en anglais
+- en connaissant 'I' et 'can' on monte à 82.4% avec la même réserve que au dessus.
+Le tokenizer de Mixtral a un vocabulaire de taille 32000 et sur le test à 10000 prompts on atteint 14923 token. il faudrait donc augmenter ou diversifier le dataset pour toucher le max de token. Pour l'instant on regarde juste des tokens qui souvent. 
+
+On commence par créer u prédicteur de profondeur 1 : ce qu'on à déjà fait à la main pour qlq token on automatise.
 
 - tsne to check pour visualisation et explicabilité
 - prédicteur :
     - token_id d'entrée + n token_id avant : ça nous donne une prédiction déterministe mais trop lourd. On veut donc entrainé un PETIT prédicteur pour tirer parti des redondances avec en entrée 
-    - sans le token_id d'entrée ! (objectif final) : on a donc n token_id précédent + hidden_vectors de la couche à laquelle on veut prédire par exemple. première étape on garde la dim 4096 mais ça serait cool de réduire (encodeur). Dans le hidden_vector à la couche l du token t-1 on commence à avoir l'information du token t mais faut regarder si embedding d'input = embedding d'output pour pouvoir utiliser  le rapport token_id <=> embedding .
+    - sans le token_id d'entrée ! (objectif final) : on a donc n token_id précédent + hidden_vectors de la couche à laquelle on veut prédire par exemple. première étape on garde la dim 4096 mais ça serait cool de réduire (encodeur). Dans le hidden_vector à la couche l du token t-1 on commence à avoir l'information du token t mais faut regarder si embedding d'input = embedding d'output pour pouvoir utiliser  le rapport token_id <=> embedding  
+    
+
+### update
+
+Cette semaine, j’ai continué à travailler sur la prédiction des experts activés dans un modèle Mixture of Experts, avec l’objectif de mieux comprendre et éventuellement anticiper les chemins de routage (`routing paths`) associés aux tokens pendant l’inférence.
+
+## Étape 1 : Prédicteur statistique simple (profondeur 1)
+
+J’ai commencé par coder un petit prédicteur très simple : pour chaque `token_id`, je regarde dans les données collectées (trajectoires d’experts) quelles sont les paires d’experts les plus souvent activées, couche par couche. Je garde ensuite la paire la plus fréquente pour chaque couche. Ce prédicteur de profondeur 1 donne une base intéressante. Il est naïf, mais pas si mauvais sur les tokens fréquents.
+On regarde ses résultats sur les 100 tokens les plus vu dans data. C'est une première estimation des perf, ça nous permet de regarder si on a de l'info rien que dans le token_id d'entrée. 
 
 
+## Étape 2 : Extension à une profondeur supérieure 
+
+Dans un second temps, j’ai commencé à construire un prédicteur un peu plus contextuel : l’idée est de passer de `token_id` seul à `(token_{t-1}, token_t)` comme entrée. Cela revient à travailler sur des **bigrams**, c’est-à-dire sur des paires de tokens successifs. Pour chaque bigramme, je vais chercher la paire d’experts la plus probable à chaque couche.
+
+Techniquement, c’est assez simple à mettre en place car j’ai déjà toutes les trajectoires dans les fichiers générés précédemment. Le plus dur, en fait, c’est la **taille de l’espace des bigrammes**. Il y a potentiellement `|V|²` possibilités (plusieurs millions si on considère un vocabulaire large), donc il faut filtrer ou échantillonner.
+
+## Étape 3 : Vers un modèle neuronal
+
+Pour dépasser les limites de la table statistique (qui grossit très vite si on veut aller en profondeur), je réfléchis maintenant à entraîner un **petit réseau de neurones** qui apprendrait à prédire les experts à activer en fonction d’un contexte (par exemple, les deux derniers `token_id`).
+
+L’idée serait d’utiliser un MLP léger, avec en entrée les token_id encodés par embeddings, et en sortie une classification multi-couche : pour chaque couche du modèle (32 au total), on prédit la paire d’experts à activer (parmi les 28 paires possibles en top-2 parmi 8).
+
+Ce modèle permettrait :
+- d’avoir une généralisation bien meilleure que les tables statistiques (surtout pour les bigrammes rares),
+- de réduire la mémoire nécessaire (plus besoin de stocker des millions de lignes),
+- et à terme, d’être utilisé dans des stratégies de préchargement ou de routing prédictif.
+
+## Ce qu’il reste à faire
+
+- Finaliser la génération du dataset d’apprentissage à partir des trajectoires (`X = [token_{t-1}, token_t]`, `Y = experts par couche`)
+- Encoder les sorties proprement (mapping des paires d’experts vers `0–27`)
+- Implémenter le modèle (embeddings + MLP)
+- Tester la qualité des prédictions avec différentes métriques (top-1, top-2, distance aux vrais experts, etc.)
+
+---
+
+En résumé, une semaine productive avec une progression naturelle : partant d’un prédicteur simple mais efficace, je me dirige vers quelque chose de plus flexible et généralisable. La suite logique sera d’entraîner ce petit modèle et de voir ce qu’il apprend sur les patterns d’activation des experts.
 

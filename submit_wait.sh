@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # Lancer le job OAR
-JOB_ID=$(oarsub -l nodes=1/gpu=3,walltime=03:00:00 -q besteffort -p "gpu_model='A40'" "./run_on_node.sh" | grep -oP '(?<=OAR_JOB_ID=)\d+')
+cd $HOME/stage_ills_moe/stage_ILLS/pilou_git
+
+JOB_ID=$(oarsub -l nodes=1,walltime=03:00:00 -q besteffort -p "gpu_mem>=60000" "./run_on_node.sh" | grep -oP '(?<=OAR_JOB_ID=)\d+')
 
 echo "Job soumis avec l'ID : $JOB_ID"
 echo "En attente de la fin du job..."
