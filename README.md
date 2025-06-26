@@ -268,8 +268,30 @@ On voit que la précision augmente encore.
 
 Cette approche nous permet de savoir ou se trouve l'information et si on peut l'exploiter mais reste à prendre avec des pincettes, on regardes les statistiques d'un jeu de données et on prédit sur le même jeu de donnée. On fait l'hypothèses ici que les trajectoires sont stables entre dataset ce qui ne parait pas déconnant si même type de dataset (languageg naturel en anglais ici).
 
+## Étape 3 : prédicteur avec profondeur mais décalage
+J'ai implémenter un prédicteur deterministe basés sur les token_id précédents. L'idée est de prendre en entrée un séquence de token_id (dont la lg = profondeur du prédicteur) et de prédire les experts à activer pour le token suivant. 
+Le but ici est de savoir si on peut prédire les experts à activer pour un token en fonction de son contexte (les token_id précédents). 
+Cela nous permettrait de 
+- faire de la prédiction verticale (spatiale) : prédire les experts à activer pour la couche l du token t+1 lorsqu'on est à la couche l du token t 
+- mieux comprendre comment les experts sont activés en fonction du contexte et d'anticiper les experts à charger pour un token donné
+En premier lieu on simplifie :
+En entrée du prédicteur on orend une séquence de token_id de taille `p` (les N plus probables de cette taille par exemple) et pour chacune de ces séquence on prédit les exeprts à activer pour le token suivant. Pour regarder la précision de ce prédicteur on regarde le taux de réussite (hit rate) pour chaque couche. On peut aussi regarder la précision en fonction de la profondeur du prédicteur (taille de la séquence d'entrée). Ce qui nous donne :
+![](./figures/Predicteur/hit_miss_rates_CONTEXTE_5.png)
+**Précision du prédicteur statistique (profondeur 5 sans le token t d'entrée) sur les 100 uplets les plus fréquents : pour chaque uplet, on affiche le taux de réussite (hit rate)**
+Commentaire :
+Comme attendu lorsqu'on ne connait pas le token d'entrée du forward la précision de la prédiction chute drastiquement même avec prof == 5. 
+On a un gain de précision en fonction de la profondeur du prédicteur mais pas suffisant pour être utile. On peut essayer d'augmenter la profondeur mais on va vite arriver à un point où on n'a plus assez de données pour faire des statistiques fiables.
 
-## Étape 3 : Vers un modèle neuronal
+
+C'est pour cela qu'on veut utiliser le maximum d'informations : on peut utiliser l'embedding de la couche l du token t-1. On a donc en entrée du prédicteur :
+- la séquence de token_id de taille `p` (de t-p à t-1)
+- l'embedding de la couche l du token t-1 (de dim 4096 )
+Comment utiliser l'embedding ? On peut l'utiliser pour avoir une idée du token_id d'entrée (on peut faire un argmax sur l'embedding pour retrouver le token_id le plus probable) ou alors on peut l'utiliser comme entrée du prédicteur.
+
+
+
+
+## Étape 4 : Vers un modèle neuronal
 
 Pour dépasser les limites de la table statistique (qui grossit très vite si on veut aller en profondeur), je réfléchis maintenant à entraîner un **petit réseau de neurones** qui apprendrait à prédire les experts à activer en fonction d’un contexte (par exemple, les deux derniers `token_id`).
 

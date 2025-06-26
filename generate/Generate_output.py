@@ -14,7 +14,7 @@ import os
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
-import numpy as np
+from pathlib import Path
 
 print("début du script de génération des outputs")
 
@@ -35,12 +35,12 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype=torch.float16
 )
 model.eval()  # Met le modèle en mode évaluation
-taille = 10
-dataset_name = "helpful-instructions"  # Nom du dataset à utiliser
+taille = 1000
+dataset_name = "HuggingFaceH4/helpful-instructions"  # Nom du dataset à utiliser
 # dataset_name = "codealpaca"  # Autre exemple de dataset
 # dataset_name = "python-codes-25k"  # Autre exemple de dataset
 ### === Chargement du dataset === ###   
-dataset = load_dataset(f"HuggingFaceH4/{dataset_name}", split=f"train[:{taille}]", trust_remote_code=True)
+dataset = load_dataset(f"{dataset_name}", split=f"train[:{taille}]", trust_remote_code=True)
 print(dataset[0].keys())
 print(model.config)  # Affiche la configuration du modèle
 
@@ -90,9 +90,13 @@ for sample in tqdm(dataset):
 
     # data de la forme [token_id, [couche][x8], [embedding+couche][x4096]]
 
+output_path = Path(f"router_logits_hidden_states_{dataset_name}_{taille}.pt")
+output_path.parent.mkdir(parents=True, exist_ok=True)  # Crée le dossier si besoin
 
-np.save(f"router_logits_hidden_states_{dataset_name}_{taille}.npy", data)
+print("saving...")
+torch.save(data, output_path)  # Sauvegarde les données dans un fichier .pt
 
+"""
 with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
     f.write(f"Dataset: {dataset_name}, Taille: {taille}\n\n")
     f.write(str(model.config) + "\n\n")  # Écrit la configuration du modèle dans le fichier
@@ -100,7 +104,7 @@ with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
         f.write(str(pro_id[0])+ "\n")  # prompt
         f.write(str(pro_id[1])+ "\n")  # token_ids
         f.write("\n\n") # Séparateur entre les entrées
-
+"""
 
 print(f"finito la génération, save dans router_logits_hidden_states_{dataset_name}_{taille}.pt et prompts_{dataset_name}_{taille}.pt")
 

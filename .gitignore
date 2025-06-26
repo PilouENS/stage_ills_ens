@@ -12,3 +12,7 @@ outputs/model.output/OL_router_logitshelpful-instructions_10000.pt
 outputs/prompt/prompts_helpful-instructions_10000.txt
 OAR.2979102.stderr
 OAR.2979102.stdout
+README.md
+outputs/model.output/helpful-instructions_1000.pt
+outputs/model.output/python-codes-25k_10.pt
+outputs/model.output/python-codes-25k_1000.pt
