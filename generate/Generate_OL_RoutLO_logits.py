@@ -36,9 +36,9 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 model.eval()  # Met le modèle en mode évaluation
 taille = 10000
-dataset_name = "HuggingFaceH4/helpful-instructions"  # Nom du dataset à utiliser
+#dataset_name = "HuggingFaceH4/helpful-instructions"  # Nom du dataset à utiliser
 # dataset_name = "codealpaca"  # Autre exemple de dataset
-#dataset_name = "flytech/python-codes-25k"  # Autre exemple de dataset
+dataset_name = "flytech/python-codes-25k"  # Autre exemple de dataset
 ### === Chargement du dataset === ###   
 dataset = load_dataset(f"{dataset_name}", split=f"train[:{taille}]", trust_remote_code=True)
 print(dataset[0].keys())
@@ -100,5 +100,5 @@ with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
         f.write("\n\n") # Séparateur entre les entrées
 """
 
-print(f"finito la génération, save dans OL_router_logits{dataset_name}_{taille}.npy et OLRLprompts_{dataset_name}_{taille}.pt")
+print(f"finito la génération, save dans OL_router_logits{dataset_name}_{taille}.npy et OLRLprompts_{dataset_name}_{taille}.npy")
 
