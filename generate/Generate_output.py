@@ -14,6 +14,7 @@ import os
 import torch
 from datasets import load_dataset
 from tqdm import tqdm
+import numpy as np
 
 print("début du script de génération des outputs")
 
@@ -34,7 +35,7 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype=torch.float16
 )
 model.eval()  # Met le modèle en mode évaluation
-taille = 1000
+taille = 10
 dataset_name = "helpful-instructions"  # Nom du dataset à utiliser
 # dataset_name = "codealpaca"  # Autre exemple de dataset
 # dataset_name = "python-codes-25k"  # Autre exemple de dataset
@@ -90,7 +91,7 @@ for sample in tqdm(dataset):
     # data de la forme [token_id, [couche][x8], [embedding+couche][x4096]]
 
 
-torch.save(data, f"router_logits_hidden_states_{dataset_name}_{taille}.pt")
+np.save(f"router_logits_hidden_states_{dataset_name}_{taille}.npy", data)
 
 with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
     f.write(f"Dataset: {dataset_name}, Taille: {taille}\n\n")
