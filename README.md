@@ -288,10 +288,27 @@ C'est pour cela qu'on veut utiliser le maximum d'informations : on peut utiliser
 - l'embedding de la couche l du token t-1 (de dim 4096 )
 Comment utiliser l'embedding ? On peut l'utiliser pour avoir une idée du token_id d'entrée (on peut faire un argmax sur l'embedding pour retrouver le token_id le plus probable) ou alors on peut l'utiliser comme entrée du prédicteur.
 
+### Précision sur la précision
+Jusqu'à présent on a regardé que la précision de nos différents prédicteurs pour les N tokens ou n-uplets les plus fréquents avec N très petit (100) devant la taille du vocabulaire. Cela nous a permis de voir si on avait de l'information dans les token_id et comment elle évoluait en fonction de la profondeur du prédicteur.
+Mais on n'a pas regardé si cette information était généralisable à l'ensemble du vocabulaire. 
+Pour cela on va regarder la précision de nos prédicteurs sur une sous partie du vocabulaire plus significative. Reste encore à savoir à partir de quand on a un sous ensemble significatif. Pour cela on trace la distribution en fréquence cumulée des token_id et n-uplets dans le dataset data de 10000 prompts (= 630k tokens) :
+![](./figures/Predicteur/distrib_data_10000/distribution_freq_1_uplets.png)
+**Distribution en fréquence cumulée des token_id dans le dataset de 10000 prompts.**
+On observe que pour les token_id simple on a une distribution exponentielle décroissante (voir tracé en log). On a donc une grande partie des token_id qui sont très peu fréquents et donc moins intéréssants à regarder dans un premier temps et qui même peuvent fausser le calcul de précision.
 
+![](./figures/Predicteur/distrib_data_10000/distribution_freq_2_uplets.png)
+**Distribution en fréquence cumulée des paires dans le dataset de 10000 prompts.**
+Il ya 150 634 paires différentes dans le dataset de 10000 prompts. On observe que la distribution est exponentielle décroissante aussi mais moins marquée que pour les token_id simples. 
 
+![](./figures/Predicteur/distrib_data_10000/distribution_freq_3_uplets.png)
+**Distribution en fréquence cumulée des 3-uplets dans le dataset de 10000 prompts.**
+Il y a 306567 3-uplets différents dans le dataset de 10000 prompts. La cassure droite correspond au moment à partir duquel ce ils ne restent plus que des triplets que l'on a vu qu'une seule fois dans le dataset. On a donc une distribution exponentielle décroissante mais moins marquée que pour les token_id simples et les paires.
 
-## Étape 4 : Vers un modèle neuronal
+![](./figures/Predicteur/distrib_data_10000/distribution_freq_5_uplets.png)
+**Distribution en fréquence cumulée des 5-uplets dans le dataset de 10000 prompts.**
+Il y a 306567 5-uplets différents dans le dataset de 10000 prompts. 
+
+On regarde pour un prédicteur de profondeur 3 sans décalage (le derniere token de la séquence = token d'entrée du forward). On avait une précision de 0.84 pour N=100 (lorsqu'on regarde le hit rate pour les 100 3-uplets les plus fréquents). POur N=5000 on traite ~24% des 3-uplets possibles  et on arrive à une précision de 0.65%. Notre précision moyenne chute donc de 20% en passant de 100 à 5000 3-uplets. Ce qui est logiquue car oon fait des statistiques sur des évenements moins fréquents. 
 
 Pour dépasser les limites de la table statistique (qui grossit très vite si on veut aller en profondeur), je réfléchis maintenant à entraîner un **petit réseau de neurones** qui apprendrait à prédire les experts à activer en fonction d’un contexte (par exemple, les deux derniers `token_id`).
 
