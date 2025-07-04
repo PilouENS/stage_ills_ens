@@ -319,5 +319,25 @@ Ce modèle permettrait :
 - de réduire la mémoire nécessaire (plus besoin de stocker des millions de lignes),
 - et à terme, d’être utilisé dans des stratégies de préchargement ou de routing prédictif.
 
-à faire 
+
+
+## Update 4th July
+- projeter hv sur matrice vocab fin
+- pour deux token consec. regarder la réutilisation d'experts 
+- refaire avec un autre modèle
+- differencier expert fort et faible
+- infos 
+    - embedding token
+    - gating function
+    - experts utilisés
+- petit modèle classifieur simple pour prendre en main : regarder en ligne, otpimiseur, espace d'entrée, de sortie ? 
+
+#### Calculer la précision du purement aléatoire : 
+Une stratégie purement aléatoire nous donnerai un hit_rate moyen de 0,25 :  
+![](./figures/Predicteur/tree_strat_aleatoire.png)  
+**Arbre de probabilité de la stratégie aléatoire**  
+E(X) = 2*1/28  +  1*(6/28 + 6/28) + 0 = 0,5
+hit_rate_moyen = 0.25 (résultat logique eft au début).
+Notre prédicteur doit donc faire mieux que 0,25 comme hit_rate pour avoir un semblant d'intérêt.
+
 
