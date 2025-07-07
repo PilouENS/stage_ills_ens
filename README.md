@@ -319,7 +319,45 @@ Ce modèle permettrait :
 - de réduire la mémoire nécessaire (plus besoin de stocker des millions de lignes),
 - et à terme, d’être utilisé dans des stratégies de préchargement ou de routing prédictif.
 
+## Préparation des données 
+Pour entrainer notre prédicteur automatique nous dvons mettre en forme `data`. 
+La premier predicteur adpotera la stratégie du contexte de taille fixé sans le token_id d'entrée dans la couche (même stratégie que étape 3).   
+Pour cela on concatène On concatène pour chaque token du contexte : <br> - `token_id ∈ ℕ` (1 entier)<br> - `experts ∈ [0,7]^2` pour 32 couches. On a donc des vecteurs de (64+1)*N en entrée. 
+On les passe en torch.tensor pour les stocker plus facilement (.pt) et les avoir aux bons formats pour le training ensuite.
 
+## Premier prédicteur automatique  
+Premier predicteur automatique : stratégie contexte de taille N sans token_id d'entrée (décalage)  
+Structure : 
+- 3 couche : input, hidden, output
+- size : 
+
+| Couche        | Dimension                          | Rôle |
+|---------------|-------------------------------------|------|
+| **Entrée**    | `65 × N`                            | On concatène pour chaque token du contexte : <br> - `token_id ∈ ℕ` (1 entier)<br> - `experts ∈ [0,7]^2` pour 32 couches (2×32 = 64 entiers)<br> → Soit `1 + 64 = 65` entiers par token, sur N tokens |
+| **Projection**| `65×N → 256`                        | Première projection linéaire pour comprimer l'information |
+| **Cachée**    | `256 → 512`                         | Couche non linéaire avec ReLU |
+| **Sortie**    | `512 → 64×8 = 512`                  | 64 sorties (32 couches × 2 experts) × 8 classes possibles (experts dans `[0,7]`) |
+| **Reshape**   | `512 → (64, 8)`                     | Pour appliquer `CrossEntropyLoss` sur chaque prédiction d’expert |
+
+- En entrée : un vecteur aplati de taille `65×N`
+- Traitement par 2 couches MLP avec ReLU
+- Sortie : logits pour `64` experts (deux par couche), chacun sur `8` classes possibles
+
+On batch avec batch_size = 128 ( à affiner je ne sais pas trop).
+On entraîne sur GPU cuda Nvidia Quadro RTX 400 avec 8GB de RAM. 
+On est parti sur la répartion train, val, test suivante :
+| Jeu de données | Pourcentage | Nombre de tokens |
+|----------------|-------------|------------------|
+| Entraînement   | 80%         | 504 576          |
+| Validation     | 10%         | 63 072           |
+| Test           | 10%         | 63 072           |
+| **Total**      | 100%        | 630 720          |
+
+
+On a choisis l'optimiseur Adam (classique pour MLP) : faire un peu de biblio dessus.
+Premier test avec un learning_rate = 1e-3 mais la loss stagne dès le début : minima local qu'on arrive pas à passer ? on diminiue le learning_rate à 1e-4 et la loss diminue sur les 20 epochs : 
+![](./figures\Predicteur\MLP_dec\loss_epoch_N3_1e4.png)
+**Train et Val loss en fonction des epochs**
 
 ## Update 4th July
 - projeter hv sur matrice vocab fin
