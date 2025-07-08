@@ -353,11 +353,17 @@ On est parti sur la répartion train, val, test suivante :
 | Test           | 10%         | 63 072           |
 | **Total**      | 100%        | 630 720          |
 
-
+On train pour 20 epochs.
 On a choisis l'optimiseur Adam (classique pour MLP) : faire un peu de biblio dessus.
 Premier test avec un learning_rate = 1e-3 mais la loss stagne dès le début : minima local qu'on arrive pas à passer ? on diminiue le learning_rate à 1e-4 et la loss diminue sur les 20 epochs : 
 ![](./figures\Predicteur\MLP_dec\loss_epoch_N3_1e4.png)
-**Train et Val loss en fonction des epochs**
+**Train et Val loss en fonction des epochs pour N=3 et learning_rate = 1e-4** 
+
+![](./figures\Predicteur\MLP_dec\loss_epoch_N5_1e4.png)
+**Train et Val loss en fonction des epochs pour N=5 et learning_rate = 1e-4**
+
+On regarde ensuite les résultats sur le test_loader (données qui n'ont jamais été vues par le model) et on trouve une **précision pour les 2 experts de 51.65% pour N=5 et 51.52% pour N=3.**
+
 
 ## Update 4th July
 - projeter hv sur matrice vocab fin
