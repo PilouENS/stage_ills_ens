@@ -325,19 +325,27 @@ La premier predicteur adpotera la stratégie du contexte de taille fixé sans le
 Pour cela on concatène On concatène pour chaque token du contexte : <br> - `token_id ∈ ℕ` (1 entier)<br> - `experts ∈ [0,7]^2` pour 32 couches. On a donc des vecteurs de (64+1)*N en entrée. 
 On les passe en torch.tensor pour les stocker plus facilement (.pt) et les avoir aux bons formats pour le training ensuite.
 
-## Premier prédicteur automatique  
+# Prédicteurs automatiques  
+
+## Model1
 Premier predicteur automatique : stratégie contexte de taille N sans token_id d'entrée (décalage)  
 Structure : 
 - 3 couche : input, hidden, output
 - size : 
 
-| Couche        | Dimension                          | Rôle |
-|---------------|-------------------------------------|------|
-| **Entrée**    | `65 × N`                            | On concatène pour chaque token du contexte : <br> - `token_id ∈ ℕ` (1 entier)<br> - `experts ∈ [0,7]^2` pour 32 couches (2×32 = 64 entiers)<br> → Soit `1 + 64 = 65` entiers par token, sur N tokens |
-| **Projection**| `65×N → 256`                        | Première projection linéaire pour comprimer l'information |
-| **Cachée**    | `256 → 512`                         | Couche non linéaire avec ReLU |
-| **Sortie**    | `512 → 64×8 = 512`                  | 64 sorties (32 couches × 2 experts) × 8 classes possibles (experts dans `[0,7]`) |
-| **Reshape**   | `512 → (64, 8)`                     | Pour appliquer `CrossEntropyLoss` sur chaque prédiction d’expert |
+### ARCHI 1
+| Couche / Layer | Dimension | Rôle / Role |
+|---------------|-----------|-------------|
+| **Entrée / Input** | `65 × N` | On concatène pour chaque token du contexte :<br>• `token_id` (1 entier)<br>• `experts ∈ [0,7]^2` pour 32 couches (2 × 32 = 64 entiers)<br>→ `1 + 64 = 65` entiers par token, sur **N** tokens |
+| **Cachée 1 / Hidden 1** | `65 × N → 256` | Première projection linéaire + ReLU |
+| **Cachée 2 / Hidden 2** | `256 → 512` | Deuxième couche linéaire + ReLU |
+| **Sortie / Output** | `512 → 64 × 8 = 512` | 64 sorties (32 couches × 2 experts) × 8 classes (experts 0-7) |
+| **Reshape** | `512 → (64, 8)` | Reshape des logits pour appliquer un `CrossEntropyLoss` par slot d’expert |
+
+
+### ARCHI 2
+
+
 
 - En entrée : un vecteur aplati de taille `65×N`
 - Traitement par 2 couches MLP avec ReLU
@@ -363,8 +371,18 @@ Premier test avec un learning_rate = 1e-3 mais la loss stagne dès le début : m
 **Train et Val loss en fonction des epochs pour N=5 et learning_rate = 1e-4**
 
 On regarde ensuite les résultats sur le test_loader (données qui n'ont jamais été vues par le model) et on trouve une **précision pour les 2 experts de 51.65% pour N=5 et 51.52% pour N=3.**
+=> pq résultats aussi proche ? 
+=> c'est mieux que le random mais c'est pas folichon non plus 
+=> rajoutons de l'info 
+    1. les routeur logits 
+    2. 
+
+## Model2
+au lieu de prendre juste les indices des deux experts choisis par couche on prend tous les routeur logits. On a donc en entrée une taille de 8*32+1 = 257 logits.
 
 
+
+ 
 ## Update 4th July
 - projeter hv sur matrice vocab fin
 - pour deux token consec. regarder la réutilisation d'experts 
@@ -383,5 +401,60 @@ Une stratégie purement aléatoire nous donnerai un hit_rate moyen de 0,25 :
 E(X) = 2*1/28  +  1*(6/28 + 6/28) + 0 = 0,5
 hit_rate_moyen = 0.25 (résultat logique eft au début).
 Notre prédicteur doit donc faire mieux que 0,25 comme hit_rate pour avoir un semblant d'intérêt.
+
+
+
+
+## Réunion 16 juillet :
+Notes :
+deux couches cachées ok 
+encoder en binaires (projeter sur dimensions 3)
+
+- LSTM reseau avec temporalité
+    - en entrée : 4096 * 5 (avec l'embedding) du modèle 
+    - réduction ? pca, entrainement reduction pour prédire (première couche taille plus petite (100))
+
+grid 5000 regarde ownership
+
+Feuille de route :
+Ok on repart sur seule info = contexte de token_id, pourquoi on a mis les experts choisis ?? 
+Donc on part sur nouveau type de réseau : LSTM (long short-term memory). Ce type de réseau apprend séquentiellement donc c'est parfait pour ce qu'on veut faire. Il faut réfléchir à comment on l'implémente. 
+En particulier sur la gestion des input. On décide de tester avec come informations seulement les token_id d'entré (avec décalage donc input = [t-n,  ..., t-1]). 
+Mais donc ça nous donne len(contexte) dans une espace de dimensions 4096 => trop grand. On veux donc réduire cette dimension. 
+Deux solutions à première vue :
+- PCA : pour réduire la dimension offline. On effectue la réduction offline 
+    - c'est cool pcq indépendant, on peut le faire avant et tester sur plusieurs modèles/archi différéntes + rapide à faire normalement$
+    - c'est moins cool pcq ç aoptimise juste l'erreur quadratique de du passage de grande dim à petite dim (essayer de passer de l'une à l'autre en perdant le moins d'infos possible) mais n'optimise pas directement la loss de notre modèle. Donc on perd un peu de ce côté là. 
+- premiere couche du réseau significativement plus petite 
+    - c'est cool pcq ça optimise naturellement la loss du modèle
+    - mais c'est très model spécifique, ça nous laisse la input layer très grande et donc modèle forcement plus gros. 
+
+
+## Prédicteur automatiques V2
+Après avoir touché à peu (100%) à tatons on change un peu d'approche sur tous les apsects.  
+
+Premièrement la gestion des données d'entré, on était parti avec le MLP sur token_id+experts utilisés pour les token_id du contexte. Maintenant on se concentre sur les token_id du contexte, on enlève les experts utilisés. 
+De plus on les formate différemment. On veut utiliser l'information de l'embedding mais elle de dim trop importante (4096). On cherche donc à réduire cette dimension. Deux solutions émergent assez rapidement, la réduction via algo offline de type PCA ou une première couche du réseau + ou - fixe qui réduirait d'un coup la dimension. Ici je me pose plusieurs questions pour choisir entre les deux, la solution offline paraît intéréssante pcq elle n'alourdit pas le réseau, du moins à l'entraînement mais ça osef mais est ce que ça change qlq chose à l'inférence ? Pcq soit on projete via pca déjà entrainé offline soit on passe par la première couche du réseau, je ne suis as sur de ce qui est le plus rapide. Au niveau des performances le pca optimise la similarité des deux espaces pour pouvoir naviguer facilement de l'un vers l'autre alors que la prmière couche du modèle optimise naturellement notre loss choisie.
+
+Deuxièment on change l'architecture du model. On passe sur un LSTM (Long short term memory) => faire un peu de documentation dessus.  
+
+Pour la PCA il faut réfléchir à comment l'implémenter. Le principe de base de l'algo c'est de projeter les données sur les dimensions qui maximisent la variance, on donne plus d'importance aux directions ou il y a une grande variance des données, ce qui revient à projeter sur les vecteurs propres. Mais sur quelles données ont fait ça ? Soit on donne les 32k tokens du vocabulaire de Mixtral qu'on passe dans la matrice d'embedding et ça fait notre input du PCA. Soit on donne l'ensemble des 630k tokens de notre dataset. Aisni on va priotariser les token les plus vus mais en même temps c'est pour eux que veut de l'info. On part sur un entrainement avec comme input les 630k tokens.
+Pour le nombre de dimensions on teste empiriquement plusieurs taille de dimension de l'espace d'arrivé et on regarde la variance à chaque fois. 
+
+++ pca choix de dim =200 ou autre . On fit sur plusieurs N et on regarde la variance à chaque fois. On teste ensuite avec tous les n dans N sur une architecture LSTM (basique pas optimisée) et on regarde la loss et la précision. Ca nous permet de voir si une grande perte dans la variance induit une aussi grande perte dans la précision, ou si on peut se contenter de moins de variance pour une précision similaire. Il faut balancer entre la taille de l'espace d'arrivé du pca et la précision du modèle de prédiction.
+->Insérer tableau avec plusieurs variance pour différents N <-
+
+
+Une fois qu'on a choose la taille de l'espace d'arrivé du PCA on peut faire le LSTM. On part sur un LSTM basique avec une couche cachée et une couche de sortie. On utilise la fonction d'activation ReLU pour la couche cachée et une couche de sortie linéaire pour la prédiction des experts. On utilise comme loss la cross entropy pour les experts.
+On utilise le dataset de 10000 prompts pour l'entraînement et on split en train, val, test. On utilise un batch_size de 128 et on entraîne pour 20 epochs. On utilise l'optimiseur Adam avec un learning_rate de 1e-4.
+On fait plusieurs premiers tests en modifiant un peu l'architecture du LSTM pour le prendre en main.
+On joue sur plusieurs paramètres :
+- la taille de l'espace d'arrivé du PCA
+- la taille de la couche cachée du LSTM
+- le nombre de couches du LSTM
+- le learning_rate de l'optimiseur Adam
+- la loss utilisée (mse ou custom) 
+- la longueur du contexte
+Avec une loss custome on aimerait avoir un loss qui se base sur le hit rate mais comme ce n'est pas diférentiable on ne peut pas l'utiliser directement. On peut par contre faire une loss qui pénalise plus les experts réellement utilisés que les autres, ou une loss qui pénalise plus le fait de ne pas choisir l'expert le plus probable que le fait de ne pas choisir l'expert le moins probable.
 
 
