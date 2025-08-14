@@ -36,10 +36,10 @@ model = AutoModelForCausalLM.from_pretrained(
     torch_dtype=torch.float16
 )
 model.eval()  # Met le modèle en mode évaluation
-taille = 1000
-#dataset_name = "HuggingFaceH4/helpful-instructions"  # Nom du dataset à utiliser
+taille = 100000
+dataset_name = "HuggingFaceH4/helpful-instructions"  # Nom du dataset à utiliser
 # dataset_name = "codealpaca"  # Autre exemple de dataset
-dataset_name = "flytech/python-codes-25k"  # Autre exemple de dataset
+#dataset_name = "flytech/python-codes-25k"  # Autre exemple de dataset
 ### === Chargement du dataset === ###   
 dataset = load_dataset(f"{dataset_name}", split=f"train[:{taille}]", trust_remote_code=True)
 print(dataset[0].keys())
@@ -52,9 +52,9 @@ data = []
 print(f"router_jitter_noise : {model.config.router_jitter_noise}")
 
 for sample in tqdm(dataset): 
-    #prompt = sample["demonstration"] #helpful_instructions
+    prompt = sample["demonstration"] #helpful_instrEuctions
     #prompt = sample.get("prompt", "").strip() #codealpaca
-    prompt = sample["output"]  # python-codes-25k
+    #prompt = sample["output"]  # python-codes-25k
     #print("prompt:", prompt, "\n")
 
     inputs = tokenizer(prompt, return_tensors="pt", truncation=False)
@@ -88,14 +88,15 @@ for sample in tqdm(dataset):
     # data de la forme [token_id, [couche][x8], [embedding+couche][x4096]]
 
 
-output_path = Path(f"OL_router_logits_hidden_states_{dataset_name}_{taille}.pt")
-output_path.parent.mkdir(parents=True, exist_ok=True)  # Crée le dossier si besoin
+#output_path = Path(f"~/moe_pilou_sto/OL_router_logits_hidden_states_{dataset_name}_{taille}.pt")
+#output_path.parent.mkdir(parents=True, exist_ok=True)  # Crée le dossier si besoin
 
 print("saving...")
-torch.save(data, output_path)  # Sauvegarde les données dans un fichier .pt
+
+torch.save(data, f"OL_router_logits_hidden_states_HelPIntrs_{taille}.pt")  # Sauvegarde les données dans un fichier .pt
 
 
-"""
+"""ls OL
 with open(f"prompts_{dataset_name}_{taille}.txt", "w") as f:
     f.write(f"Dataset: {dataset_name}, Taille: {taille}\n\n")
     f.write(str(model.config) + "\n\n")  # Écrit la configuration du modèle dans le fichier
